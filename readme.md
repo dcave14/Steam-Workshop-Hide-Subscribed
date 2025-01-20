@@ -1,18 +1,18 @@
 # Steam Workshop Hide Subscribed
 
-A Chrome extension that adds a simple toggle button to hide or show subscribed items in the Steam Workshop, making it easier to discover new content.
+A Chrome extension that adds filtering capabilities to Steam Workshop pages, allowing you to hide subscribed items and filter by star rating to easily discover new high-quality content.
 
 ## Preview
 
-![Recording 2025-01-19 at 23 32 55](https://github.com/user-attachments/assets/b603887e-80a5-48be-99b3-691ac6763c20
-)
+![Recording 2025-01-19 at 23 32 55](https://github.com/user-attachments/assets/b603887e-80a5-48be-99b3-691ac6763c20)
 
-*Click the "Hide Subscribed" button to instantly filter out items you're already subscribed to.*
+*Use the filters to quickly find new, highly-rated Workshop content.*
 
 ## Features
 
-- Adds a "Hide Subscribed" toggle button to Steam Workshop pages
-- Remembers your preference between browser sessions
+- Toggle button to hide/show subscribed items
+- Star rating filter (5 stars only, 4+ stars, etc.)
+- Remembers your preferences between browser sessions
 - Works with infinite scroll and sorting
 - Seamlessly integrates with Steam's existing UI
 - Lightweight and performant
@@ -32,17 +32,16 @@ Coming soon!
 ## Usage
 
 1. Navigate to any Steam Workshop page
-2. Look for the "Hide Subscribed" button near the sorting/filtering controls
-3. Click to toggle visibility of subscribed items
-4. The button will change to "Showing New Items" when subscribed items are hidden
-
-Your preference will be saved automatically and persist between browser sessions.
+2. Find the filtering controls near the sorting options:
+   - "Hide Subscribed" button to toggle visibility of subscribed items
+   - "Star Rating" dropdown to filter by minimum star rating
+3. Your selections will be saved automatically and persist between sessions
 
 ## How It Works
 
 The extension:
-1. Adds a toggle button to Workshop pages
-2. Detects subscribed items by checking for subscription indicators
+1. Adds filtering controls to Workshop pages
+2. Detects subscribed items and star ratings
 3. Uses Chrome's storage API to remember your preferences
 4. Monitors for dynamic content loading to maintain functionality with infinite scroll
 
@@ -82,6 +81,12 @@ Distributed under the MIT License. See `LICENSE` for more information.
 dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
+
+### 1.1.0
+- Added star rating filter
+- UI improvements with dropdown menu
+- Enhanced filter persistence
+- Fixed issues with dynamic content loading
 
 ### 1.0.0
 - Initial release
