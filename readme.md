@@ -81,11 +81,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 dcave14 - [GitHub Profile](https://github.com/dcave14)
 
-## Acknowledgments
-
-- Thanks to the Steam Workshop community for inspiration
-- Icon designed by dcave14
-
 ## Changelog
 
 ### 1.0.0
