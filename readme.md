@@ -74,8 +74,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 dcave14 - [GitHub Profile](https://github.com/dcave14)
 
-Project Link: [https://github.com/dcave14/steam-workshop-hide-subscribed](https://github.com/Cavenaugh/steam-workshop-hide-subscribed)
-
 ## Acknowledgments
 
 - Thanks to the Steam Workshop community for inspiration
