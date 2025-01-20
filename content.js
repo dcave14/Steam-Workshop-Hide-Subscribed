@@ -1,67 +1,141 @@
-// Add to the top of content.js
+// content.js
 let isHidingSubscribed = false;
+let currentStarFilter = 0; // 0 means show all
 
-function createHideButton() {
+function createButtons() {
     const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options');
     if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
 
-    const button = document.createElement('button');
-    button.className = 'hide-subscribed-button';
-    button.textContent = 'Hide Subscribed';
-    button.addEventListener('click', toggleSubscribedItems);
+    // Create star filter dropdown button
+    const starFilterContainer = document.createElement('div');
+    starFilterContainer.style.display = 'inline-block';
+    starFilterContainer.style.position = 'relative';
+    
+    const starButton = document.createElement('button');
+    starButton.className = 'hide-subscribed-button star-filter-button';
+    starButton.textContent = 'Star Rating ▼';
+    
+    const dropdownContent = document.createElement('div');
+    dropdownContent.className = 'star-dropdown-content';
+    dropdownContent.innerHTML = `
+        <div class="star-option" data-stars="0">Show All</div>
+        <div class="star-option" data-stars="5">5 Stars Only</div>
+        <div class="star-option" data-stars="4">4+ Stars</div>
+        <div class="star-option" data-stars="3">3+ Stars</div>
+        <div class="star-option" data-stars="2">2+ Stars</div>
+        <div class="star-option" data-stars="1">1+ Stars</div>
+    `;
 
-    // Load saved state
-    chrome.storage.local.get('hideSubscribed', (data) => {
+    // Create hide subscribed button
+    const hideButton = document.createElement('button');
+    hideButton.className = 'hide-subscribed-button';
+    hideButton.textContent = 'Hide Subscribed';
+    hideButton.addEventListener('click', toggleSubscribedItems);
+
+    // Add event listeners for star filter
+    starButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownContent.classList.toggle('show');
+    });
+
+    // Handle star filter selection
+    dropdownContent.addEventListener('click', (e) => {
+        const option = e.target.closest('.star-option');
+        if (option) {
+            currentStarFilter = parseInt(option.dataset.stars);
+            starButton.textContent = `${currentStarFilter === 0 ? 'Star Rating ▼' : currentStarFilter + '+ Stars ▼'}`;
+            dropdownContent.classList.remove('show');
+            
+            // Save star filter preference
+            chrome.storage.local.set({ starFilter: currentStarFilter });
+            
+            applyFilters();
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        dropdownContent.classList.remove('show');
+    });
+
+    // Load saved states
+    chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
+        // Load hide subscribed state
         if (data.hideSubscribed) {
             isHidingSubscribed = true;
-            button.classList.add('active');
-            button.textContent = 'Showing New Items';
-            // Hide items immediately
-            hideSubscribedItems(true);
+            hideButton.classList.add('active');
+            hideButton.textContent = 'Showing New Items';
+        }
+
+        // Load star filter state
+        if (data.starFilter) {
+            currentStarFilter = data.starFilter;
+            starButton.textContent = `${currentStarFilter === 0 ? 'Star Rating ▼' : currentStarFilter + '+ Stars ▼'}`;
+        }
+
+        // Apply both filters if either is active
+        if (data.hideSubscribed || data.starFilter > 0) {
+            applyFilters();
         }
     });
 
-    controlArea.appendChild(button);
+    starFilterContainer.appendChild(starButton);
+    starFilterContainer.appendChild(dropdownContent);
+    controlArea.appendChild(starFilterContainer);
+    controlArea.appendChild(hideButton);
 }
 
-
-function hideSubscribedItems(shouldHide) {
-    const items = document.querySelectorAll('.workshopItem');
-    items.forEach(item => {
-        if (isSubscribed(item)) {
-            item.classList.toggle('hidden-item', shouldHide);
-        }
-    });
+function getStarRating(item) {
+    const ratingImg = item.querySelector('.fileRating');
+    if (!ratingImg) return 0;
+    
+    // Extract star rating from image source
+    const src = ratingImg.src;
+    if (src.includes('5-star')) return 5;
+    if (src.includes('4-star')) return 4;
+    if (src.includes('3-star')) return 3;
+    if (src.includes('2-star')) return 2;
+    if (src.includes('1-star')) return 1;
+    
+    // Alternative method using data attribute if available
+    if (ratingImg.dataset.rating) {
+        return parseInt(ratingImg.dataset.rating);
+    }
+    
+    return 0;
 }
 
 function isSubscribed(item) {
-    // Debug check - log what we find
-    console.log('Checking item:', item);
-
-    // Look specifically for the visible subscription indicator
     const subscriptionIcon = item.querySelector('.user_action_history_icon.subscribed');
     if (subscriptionIcon && subscriptionIcon.style.display !== 'none') {
-        console.log('Found by subscription icon');
         return true;
     }
 
-    // Check for toggled subscribe button (make sure it's actually toggled)
     const subscribeBtn = item.querySelector('.general_btn.subscribe');
     if (subscribeBtn && subscribeBtn.classList.contains('toggled')) {
-        console.log('Found by toggled button');
         return true;
     }
 
     return false;
 }
+
+function applyFilters() {
+    const items = document.querySelectorAll('.workshopItem');
+    items.forEach(item => {
+        const starRating = getStarRating(item);
+        const meetsStarRequirement = currentStarFilter === 0 || starRating >= currentStarFilter;
+        const meetsSubscriptionRequirement = !isHidingSubscribed || !isSubscribed(item);
+        
+        item.classList.toggle('hidden-item', !meetsStarRequirement || !meetsSubscriptionRequirement);
+    });
+}
+
 function toggleSubscribedItems() {
-    const button = document.querySelector('.hide-subscribed-button');
-    isHidingSubscribed = !isHidingSubscribed; // Toggle the state
+    const button = document.querySelector('.hide-subscribed-button:not(.star-filter-button)');
+    isHidingSubscribed = !isHidingSubscribed;
     
-    // Save state
     chrome.storage.local.set({ hideSubscribed: isHidingSubscribed });
     
-    // Update button appearance
     if (isHidingSubscribed) {
         button.classList.add('active');
         button.textContent = 'Showing New Items';
@@ -70,40 +144,40 @@ function toggleSubscribedItems() {
         button.textContent = 'Hide Subscribed';
     }
     
-    // Hide/show items
-    hideSubscribedItems(isHidingSubscribed);
+    applyFilters();
 }
 
-// Initialize when the page loads
 function init() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            chrome.storage.local.get('hideSubscribed', (data) => {
+            chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
                 isHidingSubscribed = data.hideSubscribed || false;
-                createHideButton();
-                if (isHidingSubscribed) {
-                    hideSubscribedItems(true);
+                currentStarFilter = data.starFilter || 0;
+                createButtons();
+                if (isHidingSubscribed || currentStarFilter > 0) {
+                    applyFilters();
                 }
             });
         });
     } else {
-        chrome.storage.local.get('hideSubscribed', (data) => {
+        chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
             isHidingSubscribed = data.hideSubscribed || false;
-            createHideButton();
-            if (isHidingSubscribed) {
-                hideSubscribedItems(true);
+            currentStarFilter = data.starFilter || 0;
+            createButtons();
+            if (isHidingSubscribed || currentStarFilter > 0) {
+                applyFilters();
             }
         });
     }
 }
 
-// Handle dynamic content loading (for infinite scroll and sorting)
+// Set up mutation observer to handle dynamically loaded content
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         if (mutation.addedNodes.length) {
-            createHideButton();
-            if (isHidingSubscribed) {
-                hideSubscribedItems(true);
+            createButtons();
+            if (isHidingSubscribed || currentStarFilter > 0) {
+                applyFilters();
             }
         }
     }
