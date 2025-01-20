@@ -1,11 +1,11 @@
-Privacy Policy - Steam Workshop Hide Subscribed
+Privacy Policy - Steam Workshop Filter Plus
 ===================================
 
 Last updated: January 20, 2025
 
 Data Collection and Storage
 --------------------------
-Steam Workshop Hide Subscribed only stores:
+Steam Workshop Filter Plus only stores:
 - Your filter preferences (hide/show subscribed items)
 - Star rating filter settings
 

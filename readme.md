@@ -1,4 +1,4 @@
-# Steam Workshop Hide Subscribed
+# Steam Workshop Filter Plus
 
 A Chrome extension that adds filtering capabilities to Steam Workshop pages, allowing you to hide subscribed items and filter by star rating to easily discover new high-quality content.
 
