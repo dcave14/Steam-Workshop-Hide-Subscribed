@@ -1,0 +1,20 @@
+.hide-subscribed-button {
+    background-color: #67c1f5;
+    border: none;
+    border-radius: 2px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 10px;
+    padding: 5px 10px;
+    transition: all 0.2s ease;
+}
+
+.hide-subscribed-button.active {
+    background-color: #2a475e;
+    font-weight: bold;
+}
+
+.hidden-item {
+    display: none !important;
+}

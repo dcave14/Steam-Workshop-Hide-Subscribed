@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "Steam Workshop Hide Subscribed",
+    "version": "1.0",
+    "description": "Adds a button to hide subscribed items in Steam Workshop",
+    "permissions": ["storage"],
+    "content_scripts": [
+        {
+            "matches": ["*://*.steamcommunity.com/workshop/*"],
+            "js": ["content.js"],
+            "css": ["styles.css"]
+        }
+    ]
+}
