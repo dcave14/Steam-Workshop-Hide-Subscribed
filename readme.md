@@ -4,7 +4,7 @@ A Chrome extension that adds a simple toggle button to hide or show subscribed i
 
 ## Preview
 
-![Steam Workshop Hide Subscribed Demo](![Recording 2025-01-19 at 23 32 55](https://github.com/user-attachments/assets/b603887e-80a5-48be-99b3-691ac6763c20)
+![Recording 2025-01-19 at 23 32 55](https://github.com/user-attachments/assets/b603887e-80a5-48be-99b3-691ac6763c20
 )
 
 *Click the "Hide Subscribed" button to instantly filter out items you're already subscribed to.*
