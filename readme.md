@@ -2,6 +2,12 @@
 
 A Chrome extension that adds a simple toggle button to hide or show subscribed items in the Steam Workshop, making it easier to discover new content.
 
+## Preview
+
+![Steam Workshop Hide Subscribed Demo](demo.gif)
+
+*Click the "Hide Subscribed" button to instantly filter out items you're already subscribed to.*
+
 ## Features
 
 - Adds a "Hide Subscribed" toggle button to Steam Workshop pages
@@ -73,8 +79,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## Contact
 
 dcave14 - [GitHub Profile](https://github.com/dcave14)
-
-Project Link: [https://github.com/dcave14/steam-workshop-hide-subscribed](https://github.com/Cavenaugh/steam-workshop-hide-subscribed)
 
 ## Acknowledgments
 
