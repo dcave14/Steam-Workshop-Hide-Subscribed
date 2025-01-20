@@ -4,8 +4,7 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 
 ## Preview
 
-![Recording 2025-01-19 at 23 32 55](https://github.com/user-attachments/assets/b603887e-80a5-48be-99b3-691ac6763c20)
-
+![Recording 2025-01-20 at 06 23 52](https://github.com/user-attachments/assets/c705f6af-d6c7-4c66-a2fc-b948faa6ad53)
 *Use the filters to quickly find new, highly-rated Workshop content.*
 
 ## Features
@@ -13,7 +12,6 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 - Toggle button to hide/show subscribed items
 - Star rating filter (5 stars only, 4+ stars, etc.)
 - Remembers your preferences between browser sessions
-- Works with infinite scroll and sorting
 - Seamlessly integrates with Steam's existing UI
 - Lightweight and performant
 
