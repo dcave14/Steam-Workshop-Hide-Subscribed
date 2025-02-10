@@ -128,7 +128,7 @@ function applyFilters() {
 
     const itemsToFilter = selectors
         .map(selector => document.querySelectorAll(selector))
-        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[0]);
+        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[2]);
 
     Array.from(itemsToFilter).forEach(item => {
         const starRating = getStarRating(item);
