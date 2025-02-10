@@ -80,6 +80,10 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
 
+### 1.2.0
+- Added support for multiple item types (collection, workshop item, etc.)
+- Improved filter logic to handle different item structures
+
 ### 1.1.0
 - Added star rating filter
 - UI improvements with dropdown menu
