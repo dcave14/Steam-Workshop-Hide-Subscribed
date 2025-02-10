@@ -120,18 +120,23 @@ function isSubscribed(item) {
 }
 
 function applyFilters() {
-    const collectionItems = document.querySelectorAll('.collectionItem');
-    const workshopItems = document.querySelectorAll('.workshopItem');
-    
-    // If collection items exist, only filter those
-    const itemsToFilter = collectionItems.length > 0 ? collectionItems : workshopItems;
-    
-    itemsToFilter.forEach(item => {
+    const selectors = [
+        '.collectionItem',
+        '.workshopItemCollection', 
+        '.workshopItem'
+    ];
+
+    const itemsToFilter = selectors
+        .map(selector => document.querySelectorAll(selector))
+        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[0]);
+
+    Array.from(itemsToFilter).forEach(item => {
         const starRating = getStarRating(item);
-        const meetsStarRequirement = currentStarFilter === 0 || starRating >= currentStarFilter;
-        const meetsSubscriptionRequirement = !isHidingSubscribed || !isSubscribed(item);
-        
-        item.classList.toggle('hidden-item', !meetsStarRequirement || !meetsSubscriptionRequirement);
+        const isStarFilterPassed = currentStarFilter === 0 || starRating >= currentStarFilter;
+        const isSubscriptionFilterPassed = !isHidingSubscribed || !isSubscribed(item);
+        const shouldHideItem = !isStarFilterPassed || !isSubscriptionFilterPassed;
+
+        item.classList.toggle('hidden-item', shouldHideItem);
     });
 }
 
