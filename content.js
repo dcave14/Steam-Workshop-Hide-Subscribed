@@ -3,7 +3,7 @@ let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
 
 function createButtons() {
-    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options');
+    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
     if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
 
     // Create star filter dropdown button
@@ -120,13 +120,23 @@ function isSubscribed(item) {
 }
 
 function applyFilters() {
-    const items = document.querySelectorAll('.workshopItem');
-    items.forEach(item => {
+    const selectors = [
+        '.collectionItem',
+        '.workshopItemCollection', 
+        '.workshopItem'
+    ];
+
+    const itemsToFilter = selectors
+        .map(selector => document.querySelectorAll(selector))
+        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[2]);
+
+    Array.from(itemsToFilter).forEach(item => {
         const starRating = getStarRating(item);
-        const meetsStarRequirement = currentStarFilter === 0 || starRating >= currentStarFilter;
-        const meetsSubscriptionRequirement = !isHidingSubscribed || !isSubscribed(item);
-        
-        item.classList.toggle('hidden-item', !meetsStarRequirement || !meetsSubscriptionRequirement);
+        const isStarFilterPassed = currentStarFilter === 0 || starRating >= currentStarFilter;
+        const isSubscriptionFilterPassed = !isHidingSubscribed || !isSubscribed(item);
+        const shouldHideItem = !isStarFilterPassed || !isSubscriptionFilterPassed;
+
+        item.classList.toggle('hidden-item', shouldHideItem);
     });
 }
 
@@ -147,27 +157,26 @@ function toggleSubscribedItems() {
     applyFilters();
 }
 
+function applyFiltersIfNeeded() {
+    createButtons();
+    if (isHidingSubscribed || currentStarFilter > 0) {
+        applyFilters();
+    }
+}
+
+function loadFilters() {
+    chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
+        isHidingSubscribed = data.hideSubscribed || false;
+        currentStarFilter = data.starFilter || 0;
+        applyFiltersIfNeeded();
+    });
+}
+
 function init() {
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
-                isHidingSubscribed = data.hideSubscribed || false;
-                currentStarFilter = data.starFilter || 0;
-                createButtons();
-                if (isHidingSubscribed || currentStarFilter > 0) {
-                    applyFilters();
-                }
-            });
-        });
+        document.addEventListener('DOMContentLoaded', loadFilters);
     } else {
-        chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
-            isHidingSubscribed = data.hideSubscribed || false;
-            currentStarFilter = data.starFilter || 0;
-            createButtons();
-            if (isHidingSubscribed || currentStarFilter > 0) {
-                applyFilters();
-            }
-        });
+        loadFilters();
     }
 }
 
@@ -175,10 +184,7 @@ function init() {
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         if (mutation.addedNodes.length) {
-            createButtons();
-            if (isHidingSubscribed || currentStarFilter > 0) {
-                applyFilters();
-            }
+            applyFiltersIfNeeded();
         }
     }
 });
