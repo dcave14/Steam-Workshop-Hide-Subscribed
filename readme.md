@@ -6,6 +6,8 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 
 ![Recording 2025-01-20 at 06 23 52](https://github.com/user-attachments/assets/c705f6af-d6c7-4c66-a2fc-b948faa6ad53)
 *Use the filters to quickly find new, highly-rated Workshop content.*
+![Recording 2025-02-17 at 06 50 38](https://github.com/user-attachments/assets/c676ef6b-853d-4f35-bd46-669b9e27bf54)
+*Now available to use with mod collections!*
 
 ## Features
 
@@ -18,7 +20,7 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 ## Installation
 
 ### From Chrome Web Store
-Coming soon!
+- https://chromewebstore.google.com/detail/steam-workshop-filter-plu/ahdjppacldfaiahihkhfkhhmadhicfda?authuser=0&hl=en
 
 ### Manual Installation (Developer Mode)
 1. Download or clone this repository
@@ -38,7 +40,7 @@ Coming soon!
 ## How It Works
 
 The extension:
-1. Adds filtering controls to Workshop pages
+1. Adds filtering controls to Workshop and Collection pages
 2. Detects subscribed items and star ratings
 3. Uses Chrome's storage API to remember your preferences
 4. Monitors for dynamic content loading to maintain functionality with infinite scroll
