@@ -9,6 +9,7 @@
     margin-left: 10px;
     padding: 5px 10px;
     transition: all 0.2s ease;
+    vertical-align: middle;
 }
 
 .hide-subscribed-button.active {
@@ -26,15 +27,13 @@
 
 .star-dropdown-content {
     display: none;
-    position: absolute;
+    position: fixed;
     background-color: #171a21;
     min-width: 160px;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1000;
+    z-index: 2147483647;
     border: 1px solid #4d4d4d;
     border-radius: 2px;
-    top: 100%;
-    left: 0;
 }
 
 .star-dropdown-content.show {

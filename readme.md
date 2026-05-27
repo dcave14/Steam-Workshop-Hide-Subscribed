@@ -82,6 +82,13 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
 
+### 1.3.0
+- Added support for Steam's new Workshop SPA (`/app/{id}/workshop/`)
+- Buttons now inject into the new navigation panel next to "About"
+- Star rating and subscription state detected via stable SVG icons on the new cards
+- Fixed the star filter dropdown rendering behind Steam's item cards
+- Debounced re-injection to handle the SPA's client-side re-renders
+
 ### 1.2.0
 - Added support for multiple item types (collection, workshop item, etc.)
 - Improved filter logic to handle different item structures

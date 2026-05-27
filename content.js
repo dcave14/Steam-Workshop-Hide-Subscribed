@@ -3,18 +3,21 @@ let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
 
 function createButtons() {
-    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
+    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls')
+        || document.querySelector('a[href*="/workshop/about/"]')?.parentElement;
     if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
+
+    document.querySelectorAll('.star-dropdown-content').forEach(el => el.remove());
 
     // Create star filter dropdown button
     const starFilterContainer = document.createElement('div');
     starFilterContainer.style.display = 'inline-block';
     starFilterContainer.style.position = 'relative';
-    
+
     const starButton = document.createElement('button');
     starButton.className = 'hide-subscribed-button star-filter-button';
     starButton.textContent = 'Star Rating ▼';
-    
+
     const dropdownContent = document.createElement('div');
     dropdownContent.className = 'star-dropdown-content';
     dropdownContent.innerHTML = `
@@ -35,6 +38,12 @@ function createButtons() {
     // Add event listeners for star filter
     starButton.addEventListener('click', (e) => {
         e.stopPropagation();
+        const isOpening = !dropdownContent.classList.contains('show');
+        if (isOpening) {
+            const rect = starButton.getBoundingClientRect();
+            dropdownContent.style.top = `${rect.bottom}px`;
+            dropdownContent.style.left = `${rect.left}px`;
+        }
         dropdownContent.classList.toggle('show');
     });
 
@@ -45,10 +54,10 @@ function createButtons() {
             currentStarFilter = parseInt(option.dataset.stars);
             starButton.textContent = `${currentStarFilter === 0 ? 'Star Rating ▼' : currentStarFilter + '+ Stars ▼'}`;
             dropdownContent.classList.remove('show');
-            
+
             // Save star filter preference
             chrome.storage.local.set({ starFilter: currentStarFilter });
-            
+
             applyFilters();
         }
     });
@@ -80,15 +89,16 @@ function createButtons() {
     });
 
     starFilterContainer.appendChild(starButton);
-    starFilterContainer.appendChild(dropdownContent);
+    document.body.appendChild(dropdownContent);
     controlArea.appendChild(starFilterContainer);
     controlArea.appendChild(hideButton);
 }
 
 function getStarRating(item) {
     const ratingImg = item.querySelector('.fileRating');
-    if (!ratingImg) return 0;
-    
+
+    if (!ratingImg) return item.querySelectorAll('.SVGIcon_Star_Filled').length;
+
     // Extract star rating from image source
     const src = ratingImg.src;
     if (src.includes('5-star')) return 5;
@@ -96,12 +106,12 @@ function getStarRating(item) {
     if (src.includes('3-star')) return 3;
     if (src.includes('2-star')) return 2;
     if (src.includes('1-star')) return 1;
-    
+
     // Alternative method using data attribute if available
     if (ratingImg.dataset.rating) {
         return parseInt(ratingImg.dataset.rating);
     }
-    
+
     return 0;
 }
 
@@ -116,19 +126,36 @@ function isSubscribed(item) {
         return true;
     }
 
+    if (item.querySelector('.SVGIcon_Check')) {
+        return true;
+    }
+
     return false;
+}
+
+function getSpaCards() {
+    const cards = new Set();
+    document.querySelectorAll('a[href*="/sharedfiles/filedetails/?id="]').forEach(anchor => {
+        const card = anchor.closest('.Panel');
+        if (card && card.querySelector('.SVGIcon_Star_Filled, .SVGIcon_Star_Unfilled')) {
+            cards.add(card);
+        }
+    });
+    return cards;
 }
 
 function applyFilters() {
     const selectors = [
         '.collectionItem',
-        '.workshopItemCollection', 
+        '.workshopItemCollection',
         '.workshopItem'
     ];
 
-    const itemsToFilter = selectors
+    const classicItems = selectors
         .map(selector => document.querySelectorAll(selector))
-        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[2]);
+        .find(elements => elements.length > 0);
+
+    const itemsToFilter = classicItems || getSpaCards();
 
     Array.from(itemsToFilter).forEach(item => {
         const starRating = getStarRating(item);
@@ -143,9 +170,9 @@ function applyFilters() {
 function toggleSubscribedItems() {
     const button = document.querySelector('.hide-subscribed-button:not(.star-filter-button)');
     isHidingSubscribed = !isHidingSubscribed;
-    
+
     chrome.storage.local.set({ hideSubscribed: isHidingSubscribed });
-    
+
     if (isHidingSubscribed) {
         button.classList.add('active');
         button.textContent = 'Showing New Items';
@@ -153,7 +180,7 @@ function toggleSubscribedItems() {
         button.classList.remove('active');
         button.textContent = 'Hide Subscribed';
     }
-    
+
     applyFilters();
 }
 
@@ -181,10 +208,21 @@ function init() {
 }
 
 // Set up mutation observer to handle dynamically loaded content
+let debounceTimer = null;
+
+function scheduleApplyFilters() {
+    if (debounceTimer) return;
+    debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        applyFiltersIfNeeded();
+    }, 150);
+}
+
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         if (mutation.addedNodes.length) {
-            applyFiltersIfNeeded();
+            scheduleApplyFilters();
+            return;
         }
     }
 });
