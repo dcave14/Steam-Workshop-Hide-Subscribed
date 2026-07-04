@@ -4,16 +4,18 @@
  * Control group layout                                               *
  * ------------------------------------------------------------------ */
 .swfp-controls {
-    --swfp-w: 190px; /* one workshop-item width; JS overrides at runtime */
+    --swfp-w: 200px; /* matches Steam's sort dropdown; JS sets real value */
+    --swfp-h: 40px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    vertical-align: middle;
     font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
 }
 
-.swfp-controls.swfp-inline {
-    vertical-align: middle;
+.swfp-controls.swfp-classic {
+    margin-left: 4px;
 }
 
 /* Floating fallback panel (used only when no toolbar anchor is found) */
@@ -33,18 +35,18 @@
  * Buttons                                                            *
  * ------------------------------------------------------------------ */
 .swfp-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
     line-height: 1;
     white-space: nowrap;
     user-select: none;
+    box-sizing: border-box;
 }
 
 .swfp-glyph,
-.swfp-caret,
-.swfp-check {
+.swfp-caret {
     flex: 0 0 auto;
 }
 
@@ -67,20 +69,18 @@
     transform: rotate(180deg);
 }
 
-/* --- New UI: each control is one item wide and clones Steam's sort-dropdown
- * class list, so background / padding / radius come from Steam natively. --- */
+/* --- New UI: clone Steam's sort-dropdown class list, and match its exact
+ * width + height so the three controls are a uniform set. --- */
 .swfp-controls.swfp-native > .swfp-dropdown,
 .swfp-controls.swfp-native > .swfp-btn {
     width: var(--swfp-w);
-    box-sizing: border-box;
 }
 
-.swfp-controls.swfp-native .swfp-dropdown .swfp-btn {
+.swfp-controls.swfp-native .swfp-btn {
+    min-height: var(--swfp-h);
     width: 100%;
-    box-sizing: border-box;
 }
 
-/* active state kept subtle so the set still reads as uniform */
 .swfp-controls.swfp-native .swfp-btn.swfp-active .swfp-label {
     color: #66c0f4;
     font-weight: 600;
@@ -90,8 +90,20 @@
     color: #66c0f4;
 }
 
-/* --- Classic UI fallback: no native classes, so provide our own pill --- */
-.swfp-controls:not(.swfp-native) .swfp-btn {
+/* --- Classic UI: clone .general_btn so we match the neighbouring
+ * "Subscribe to all" buttons; keep the icon + label inline. --- */
+.swfp-controls.swfp-classic .swfp-btn {
+    display: inline-flex;
+    text-decoration: none;
+}
+
+.swfp-controls.swfp-classic .swfp-btn.swfp-active .swfp-label,
+.swfp-controls.swfp-classic .swfp-btn.swfp-active .swfp-glyph {
+    color: #66c0f4;
+}
+
+/* --- Floating fallback: no native classes, provide our own pill. --- */
+.swfp-controls.swfp-floating .swfp-btn {
     border: none;
     border-radius: 3px;
     padding: 7px 12px;
@@ -101,18 +113,18 @@
     transition: background 0.15s ease, color 0.15s ease;
 }
 
-.swfp-controls:not(.swfp-native) .swfp-btn:hover {
+.swfp-controls.swfp-floating .swfp-btn:hover {
     background: #4f86ab;
 }
 
-.swfp-controls:not(.swfp-native) .swfp-btn.swfp-active {
+.swfp-controls.swfp-floating .swfp-btn.swfp-active {
     background: #66c0f4;
     color: #0b1419;
     font-weight: bold;
 }
 
 /* ------------------------------------------------------------------ *
- * Star-rating dropdown menu                                          *
+ * Star-rating dropdown menu (styled to match Steam's sort dropdown)  *
  * ------------------------------------------------------------------ */
 .swfp-dropdown {
     position: relative;
@@ -125,14 +137,14 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 2147483001;
-    min-width: 100%;
-    padding: 6px;
+    min-width: max(100%, 200px);
+    padding: 10px;
     flex-direction: column;
     gap: 2px;
-    background: #1a212b;
-    border: 1px solid #3d4650;
-    border-radius: 8px;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+    background: #1b2b3a;
+    border: 1px solid #0b1015;
+    border-radius: 6px;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.7);
     box-sizing: border-box;
 }
 
@@ -140,51 +152,59 @@
     display: flex;
 }
 
+.swfp-menu-head {
+    padding: 2px 6px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #7b93a8;
+}
+
 .swfp-option {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 5px;
+    gap: 10px;
+    padding: 7px 6px;
+    border-radius: 4px;
     font-size: 13px;
-    color: #c6d4df;
+    color: #c7d5e0;
     cursor: pointer;
     transition: background 0.12s ease, color 0.12s ease;
 }
 
 .swfp-option:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
 }
 
 .swfp-option.swfp-selected {
-    color: #66c0f4;
+    color: #ffffff;
 }
 
-/* leading check marks the active option */
-.swfp-check {
-    display: inline-flex;
-    width: 13px;
-    flex: 0 0 13px;
-    color: #66c0f4;
-    visibility: hidden;
+/* Steam-style radio indicator */
+.swfp-radio {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #55707f;
+    box-sizing: border-box;
+    transition: border-color 0.12s ease;
 }
 
-.swfp-option.swfp-selected .swfp-check {
-    visibility: visible;
+.swfp-option:hover .swfp-radio {
+    border-color: #8aa4b3;
 }
 
-.swfp-opt-star {
-    width: 12px;
-    flex: 0 0 12px;
-    text-align: center;
-    color: #f5c518;
-    font-size: 12px;
-    line-height: 1;
+.swfp-option.swfp-selected .swfp-radio {
+    border-color: #4a9fe0;
+    background:
+        radial-gradient(circle at center, #4a9fe0 0 4px, transparent 5px);
 }
 
-.swfp-opt-star--empty {
-    color: transparent;
+.swfp-opt-label {
+    flex: 1 1 auto;
 }
 
 /* ------------------------------------------------------------------ *
