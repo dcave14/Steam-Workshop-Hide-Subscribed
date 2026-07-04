@@ -9,7 +9,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     vertical-align: middle;
     font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
 }
@@ -74,11 +74,13 @@
 .swfp-controls.swfp-native > .swfp-dropdown,
 .swfp-controls.swfp-native > .swfp-btn {
     width: var(--swfp-w);
+    min-height: var(--swfp-h);
 }
 
-.swfp-controls.swfp-native .swfp-btn {
-    min-height: var(--swfp-h);
+/* the star button fills its dropdown wrapper (which is already one item wide) */
+.swfp-controls.swfp-native .swfp-dropdown .swfp-btn {
     width: 100%;
+    min-height: var(--swfp-h);
 }
 
 .swfp-controls.swfp-native .swfp-btn.swfp-active .swfp-label {
