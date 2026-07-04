@@ -6,11 +6,14 @@
 //                        wrapped in an .aspectratio_* container
 //   - star rating     -> count of svg.SVGIcon_Star_Filled
 //   - subscribed?     -> the green add button shows svg.SVGIcon_Check (vs Plus)
-//   - toolbar anchor  -> input[name="SearchInput"]
+//   - sort control    -> the [role="button"] with text in the search toolbar row
+//                        ("Most Popular ..."); our controls sit beside it and
+//                        clone its styling so everything matches.
 
 let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
 let stateLoaded = false;
+let sortEl = null; // Steam's "Most Popular" sort control (new UI)
 
 const STAR_OPTIONS = [
     { stars: 0, label: 'Show All' },
@@ -32,13 +35,6 @@ const ICON = {
 };
 
 /* -------------------------- UI-agnostic helpers ----------------------- */
-
-// Class list Steam uses on its own toolbar buttons; cloning it lets our
-// injected controls inherit the native new-UI styling. '' on the old UI.
-function getNativeButtonClass() {
-    const ref = document.querySelector('button[data-accent-color]');
-    return ref ? ref.className : '';
-}
 
 // New-UI item cards.
 function getNewUiCards() {
@@ -63,6 +59,27 @@ function getItemCards() {
         if (els.length) return Array.from(els);
     }
     return [];
+}
+
+// Steam's sort dropdown ("Most Popular ...") in the new UI: the nearest
+// [role="button"] with visible text in the toolbar row that holds the search
+// box. We place our controls beside it and clone its class list for styling.
+function findSortControl() {
+    const search = document.querySelector('input[name="SearchInput"]');
+    if (!search) return null;
+
+    let node = search.closest('form') || search;
+    for (let i = 0; i < 8 && node && node !== document.body; i++) {
+        node = node.parentElement;
+        if (!node) break;
+        const candidates = Array.from(node.querySelectorAll('[role="button"]'))
+            .filter(el => !el.closest('.swfp-controls') && el.textContent.trim().length > 0);
+        if (candidates.length) {
+            candidates.sort((a, b) => b.textContent.trim().length - a.textContent.trim().length);
+            return candidates[0];
+        }
+    }
+    return null;
 }
 
 function getStarRating(item) {
@@ -115,11 +132,22 @@ function starButtonLabel() {
     return currentStarFilter === 5 ? '5 Stars' : `${currentStarFilter}+ Stars`;
 }
 
+// Build a control element that mimics Steam's sort dropdown (div[role=button]
+// with the same class list) so it inherits the native dull styling.
+function makeControl(nativeClass, extraClass) {
+    const el = document.createElement('div');
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.className = ('swfp-btn ' + extraClass + ' ' + nativeClass).trim();
+    return el;
+}
+
 function createControls() {
     if (document.querySelector('.swfp-controls')) return; // already injected
 
-    const nativeClass = getNativeButtonClass();
-    const isNewUi = !!nativeClass;
+    sortEl = findSortControl();
+    const nativeClass = sortEl ? sortEl.className : '';
+    const isNewUi = !!sortEl;
 
     const group = document.createElement('div');
     group.className = 'swfp-controls' + (isNewUi ? ' swfp-native' : '');
@@ -128,12 +156,7 @@ function createControls() {
     const dropdown = document.createElement('div');
     dropdown.className = 'swfp-dropdown';
 
-    const starBtn = document.createElement('button');
-    starBtn.type = 'button';
-    starBtn.className = 'swfp-btn ' + nativeClass;
-    starBtn.style.setProperty('--min-width', 'fit-content');
-    starBtn.innerHTML =
-        `<span class="swfp-btn-inner">${ICON.star}<span class="swfp-label"></span>${ICON.caret}</span>`;
+    const starBtn = makeControl(nativeClass, 'swfp-star');
 
     const menu = document.createElement('div');
     menu.className = 'swfp-menu';
@@ -150,30 +173,32 @@ function createControls() {
     });
 
     /* --- Hide-subscribed toggle --- */
-    const hideBtn = document.createElement('button');
-    hideBtn.type = 'button';
-    hideBtn.className = 'swfp-btn ' + nativeClass;
-    hideBtn.style.setProperty('--min-width', 'fit-content');
+    const hideBtn = makeControl(nativeClass, 'swfp-hide');
 
     function renderStar() {
-        starBtn.querySelector('.swfp-label').textContent = starButtonLabel();
-        starBtn.setAttribute('data-accent-color', currentStarFilter ? 'blue' : 'dull');
+        const active = currentStarFilter > 0;
+        starBtn.classList.toggle('swfp-active', active);
+        starBtn.innerHTML =
+            `${ICON.star}<span class="swfp-label">${starButtonLabel()}</span>${ICON.caret}`;
         menu.querySelectorAll('.swfp-option').forEach(o => {
             o.classList.toggle('swfp-selected', parseInt(o.dataset.stars, 10) === currentStarFilter);
         });
     }
 
     function renderHide() {
-        hideBtn.setAttribute('data-accent-color', isHidingSubscribed ? 'blue' : 'dull');
         hideBtn.classList.toggle('swfp-active', isHidingSubscribed);
         const icon = isHidingSubscribed ? ICON.eyeOff : ICON.eye;
         const text = isHidingSubscribed ? 'Showing New' : 'Hide Subscribed';
-        hideBtn.innerHTML = `<span class="swfp-btn-inner">${icon}<span class="swfp-label">${text}</span></span>`;
+        hideBtn.innerHTML = `${icon}<span class="swfp-label">${text}</span>`;
     }
 
-    starBtn.addEventListener('click', e => {
+    function toggleMenu(e) {
         e.stopPropagation();
         dropdown.classList.toggle('swfp-open');
+    }
+    starBtn.addEventListener('click', toggleMenu);
+    starBtn.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') toggleMenu(e);
     });
 
     menu.addEventListener('click', e => {
@@ -188,11 +213,15 @@ function createControls() {
 
     document.addEventListener('click', () => dropdown.classList.remove('swfp-open'));
 
-    hideBtn.addEventListener('click', () => {
+    function toggleHide() {
         isHidingSubscribed = !isHidingSubscribed;
         chrome.storage.local.set({ hideSubscribed: isHidingSubscribed });
         renderHide();
         applyFilters();
+    }
+    hideBtn.addEventListener('click', toggleHide);
+    hideBtn.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHide(); }
     });
 
     renderStar();
@@ -204,20 +233,22 @@ function createControls() {
     group.appendChild(hideBtn);
 
     placeControls(group);
+    sizeControls();
 }
 
-// Insert the control group next to Steam's search/sort bar (new UI) or the
-// classic control bar, falling back to a floating panel.
+// Insert the control group next to Steam's sort dropdown (new UI), else the
+// classic control bar, else float it.
 function placeControls(group) {
-    const search = document.querySelector('input[name="SearchInput"]');
-    if (search) {
-        const form = search.closest('form');
-        const host = form ? form.parentElement : search.parentElement;
-        if (host) {
-            group.classList.add('swfp-inline');
-            host.appendChild(group);
-            return;
-        }
+    if (sortEl && sortEl.parentElement) {
+        const host = sortEl.parentElement;
+        // ensure the sort control and our group lay out on one row
+        host.style.display = 'flex';
+        host.style.alignItems = 'center';
+        host.style.flexWrap = 'wrap';
+        if (!host.style.gap) host.style.gap = '8px';
+        host.insertBefore(group, sortEl);
+        group.classList.add('swfp-inline');
+        return;
     }
 
     const classicBar = document.querySelector(
@@ -229,10 +260,34 @@ function placeControls(group) {
         return;
     }
 
-    // Last resort: only float a panel if there is actually content to filter.
     if (getItemCards().length) {
         group.classList.add('swfp-floating');
         document.body.appendChild(group);
+    }
+}
+
+// Size our controls (and Steam's sort dropdown) to one workshop-item width so
+// the three read as a matching set.
+function measureItemWidth() {
+    const cards = getItemCards();
+    if (!cards.length) return 0;
+    const w = cards[0].getBoundingClientRect().width;
+    return w > 40 ? Math.round(w) : 0;
+}
+
+function sizeControls() {
+    const group = document.querySelector('.swfp-controls');
+    if (!group || !group.classList.contains('swfp-native')) return;
+
+    const w = measureItemWidth();
+    if (w) group.style.setProperty('--swfp-w', w + 'px');
+
+    if (!sortEl || !sortEl.isConnected) sortEl = findSortControl();
+    if (sortEl && w) {
+        sortEl.style.boxSizing = 'border-box';
+        sortEl.style.width = w + 'px';
+        sortEl.style.minWidth = w + 'px';
+        sortEl.style.justifyContent = 'space-between';
     }
 }
 
@@ -241,6 +296,7 @@ function placeControls(group) {
 function tick() {
     if (!stateLoaded) return;
     createControls();
+    sizeControls();
     if (isHidingSubscribed || currentStarFilter > 0) applyFilters();
 }
 
@@ -265,6 +321,15 @@ const observer = new MutationObserver(() => {
     }, 150);
 });
 observer.observe(document.body, { childList: true, subtree: true });
+
+window.addEventListener('resize', () => {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(() => {
+        scheduled = false;
+        sizeControls();
+    }, 150);
+});
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);

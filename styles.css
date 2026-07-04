@@ -4,14 +4,15 @@
  * Control group layout                                               *
  * ------------------------------------------------------------------ */
 .swfp-controls {
+    --swfp-w: 190px; /* one workshop-item width; JS overrides at runtime */
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
     font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
 }
 
 .swfp-controls.swfp-inline {
-    margin-left: 8px;
     vertical-align: middle;
 }
 
@@ -32,24 +33,32 @@
  * Buttons                                                            *
  * ------------------------------------------------------------------ */
 .swfp-btn {
-    cursor: pointer;
-}
-
-.swfp-btn-inner {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
+    cursor: pointer;
     line-height: 1;
     white-space: nowrap;
+    user-select: none;
 }
 
-.swfp-glyph {
+.swfp-glyph,
+.swfp-caret,
+.swfp-check {
     flex: 0 0 auto;
+}
+
+/* label fills the middle so the caret sits at the right edge, like the
+ * native "Most Popular" sort dropdown */
+.swfp-label {
+    flex: 1 1 auto;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .swfp-caret {
-    flex: 0 0 auto;
-    margin-left: 2px;
     opacity: 0.8;
     transition: transform 0.15s ease;
 }
@@ -58,11 +67,30 @@
     transform: rotate(180deg);
 }
 
-/*
- * On the new UI our buttons clone Steam's own button classes + data-accent-color,
- * so their background/padding/radius come from Steam. We only add spacing above.
- * On the classic UI (no native classes) we provide our own pill styling.
- */
+/* --- New UI: each control is one item wide and clones Steam's sort-dropdown
+ * class list, so background / padding / radius come from Steam natively. --- */
+.swfp-controls.swfp-native > .swfp-dropdown,
+.swfp-controls.swfp-native > .swfp-btn {
+    width: var(--swfp-w);
+    box-sizing: border-box;
+}
+
+.swfp-controls.swfp-native .swfp-dropdown .swfp-btn {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* active state kept subtle so the set still reads as uniform */
+.swfp-controls.swfp-native .swfp-btn.swfp-active .swfp-label {
+    color: #66c0f4;
+    font-weight: 600;
+}
+
+.swfp-controls.swfp-native .swfp-btn.swfp-active .swfp-glyph {
+    color: #66c0f4;
+}
+
+/* --- Classic UI fallback: no native classes, so provide our own pill --- */
 .swfp-controls:not(.swfp-native) .swfp-btn {
     border: none;
     border-radius: 3px;
@@ -97,7 +125,7 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 2147483001;
-    min-width: 190px;
+    min-width: 100%;
     padding: 6px;
     flex-direction: column;
     gap: 2px;
@@ -105,6 +133,7 @@
     border: 1px solid #3d4650;
     border-radius: 8px;
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+    box-sizing: border-box;
 }
 
 .swfp-dropdown.swfp-open .swfp-menu {

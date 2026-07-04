@@ -85,7 +85,7 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 ### 1.3.0
 - Added support for Steam's redesigned (beta) Workshop UI
 - Detects items, star ratings, and subscription state using stable selectors that survive Steam's hashed class names
-- Filter controls now clone Steam's native button styling so they match the new interface (with a floating fallback if the toolbar can't be found)
+- Filter controls sit beside Steam's "Most Popular" sort dropdown, clone its native styling, and are sized to one workshop-item width so all three read as a matching set (with a floating fallback if the toolbar can't be found)
 - Classic Workshop UI remains fully supported
 - Throttled dynamic-content handling for smoother performance on the new React-based pages
 
