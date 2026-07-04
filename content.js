@@ -1,197 +1,273 @@
 // content.js
+// Supports both the classic Steam Workshop UI and the new (beta) redesigned UI.
+// The new UI is a React app whose layout class names are hashed and change every
+// build, so detection anchors only on stable, semantic signals:
+//   - item cards      -> <img> inside an a[href*="/sharedfiles/filedetails/?id="]
+//                        wrapped in an .aspectratio_* container
+//   - star rating     -> count of svg.SVGIcon_Star_Filled
+//   - subscribed?     -> the green add button shows svg.SVGIcon_Check (vs Plus)
+//   - toolbar anchor  -> input[name="SearchInput"]
+
 let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
+let stateLoaded = false;
 
-function createButtons() {
-    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
-    if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
+const STAR_OPTIONS = [
+    { stars: 0, label: 'Show All' },
+    { stars: 5, label: '5 Stars' },
+    { stars: 4, label: '4+ Stars' },
+    { stars: 3, label: '3+ Stars' },
+    { stars: 2, label: '2+ Stars' },
+    { stars: 1, label: '1+ Stars' },
+];
 
-    // Create star filter dropdown button
-    const starFilterContainer = document.createElement('div');
-    starFilterContainer.style.display = 'inline-block';
-    starFilterContainer.style.position = 'relative';
-    
-    const starButton = document.createElement('button');
-    starButton.className = 'hide-subscribed-button star-filter-button';
-    starButton.textContent = 'Star Rating ▼';
-    
-    const dropdownContent = document.createElement('div');
-    dropdownContent.className = 'star-dropdown-content';
-    dropdownContent.innerHTML = `
-        <div class="star-option" data-stars="0">Show All</div>
-        <div class="star-option" data-stars="5">5 Stars Only</div>
-        <div class="star-option" data-stars="4">4+ Stars</div>
-        <div class="star-option" data-stars="3">3+ Stars</div>
-        <div class="star-option" data-stars="2">2+ Stars</div>
-        <div class="star-option" data-stars="1">1+ Stars</div>
-    `;
+/* ------------------------------- Icons -------------------------------- */
 
-    // Create hide subscribed button
-    const hideButton = document.createElement('button');
-    hideButton.className = 'hide-subscribed-button';
-    hideButton.textContent = 'Hide Subscribed';
-    hideButton.addEventListener('click', toggleSubscribedItems);
+const ICON = {
+    star: '<svg class="swfp-glyph" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2.2l2.9 6 6.6.6-5 4.4 1.5 6.5L12 16.9 6 19.7l1.5-6.5-5-4.4 6.6-.6z"/></svg>',
+    eye: '<svg class="swfp-glyph" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 5C6.5 5 2.4 8.6 1 12c1.4 3.4 5.5 7 11 7s9.6-3.6 11-7c-1.4-3.4-5.5-7-11-7zm0 11.5A4.5 4.5 0 1112 7a4.5 4.5 0 010 9.5zM12 9a3 3 0 100 6 3 3 0 000-6z"/></svg>',
+    eyeOff: '<svg class="swfp-glyph" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M3.3 2L2 3.3l3.2 3.2A13.4 13.4 0 001 12c1.4 3.4 5.5 7 11 7 2.1 0 4-.5 5.7-1.3L20.7 22l1.3-1.3L3.3 2zm7.1 7.1l3.5 3.5A2.5 2.5 0 0110.4 9zM12 7c2.8 0 4.9 2.5 4.9 5 0 .6-.1 1.2-.3 1.7l2.2 2.2A13 13 0 0023 12c-1.4-3.4-5.5-7-11-7-1 0-1.9.1-2.8.3l1.9 1.9c.3-.1.6-.2.9-.2z"/></svg>',
+    caret: '<svg class="swfp-caret" viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path fill="currentColor" d="M4 6l4 4 4-4z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
+};
 
-    // Add event listeners for star filter
-    starButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdownContent.classList.toggle('show');
+/* -------------------------- UI-agnostic helpers ----------------------- */
+
+// Class list Steam uses on its own toolbar buttons; cloning it lets our
+// injected controls inherit the native new-UI styling. '' on the old UI.
+function getNativeButtonClass() {
+    const ref = document.querySelector('button[data-accent-color]');
+    return ref ? ref.className : '';
+}
+
+// New-UI item cards.
+function getNewUiCards() {
+    const cards = new Set();
+    document.querySelectorAll('a[href*="/sharedfiles/filedetails/?id="] img').forEach(img => {
+        const link = img.closest('a');
+        const wrap = link && link.closest('[class*="aspectratio_"]');
+        if (wrap && wrap.parentElement) cards.add(wrap.parentElement);
     });
+    return Array.from(cards);
+}
 
-    // Handle star filter selection
-    dropdownContent.addEventListener('click', (e) => {
-        const option = e.target.closest('.star-option');
-        if (option) {
-            currentStarFilter = parseInt(option.dataset.stars);
-            starButton.textContent = `${currentStarFilter === 0 ? 'Star Rating ▼' : currentStarFilter + '+ Stars ▼'}`;
-            dropdownContent.classList.remove('show');
-            
-            // Save star filter preference
-            chrome.storage.local.set({ starFilter: currentStarFilter });
-            
-            applyFilters();
-        }
-    });
+// Returns the list of workshop item elements on the page (new UI first, then
+// the classic-UI selectors).
+function getItemCards() {
+    const newCards = getNewUiCards();
+    if (newCards.length) return newCards;
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', () => {
-        dropdownContent.classList.remove('show');
-    });
-
-    // Load saved states
-    chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
-        // Load hide subscribed state
-        if (data.hideSubscribed) {
-            isHidingSubscribed = true;
-            hideButton.classList.add('active');
-            hideButton.textContent = 'Showing New Items';
-        }
-
-        // Load star filter state
-        if (data.starFilter) {
-            currentStarFilter = data.starFilter;
-            starButton.textContent = `${currentStarFilter === 0 ? 'Star Rating ▼' : currentStarFilter + '+ Stars ▼'}`;
-        }
-
-        // Apply both filters if either is active
-        if (data.hideSubscribed || data.starFilter > 0) {
-            applyFilters();
-        }
-    });
-
-    starFilterContainer.appendChild(starButton);
-    starFilterContainer.appendChild(dropdownContent);
-    controlArea.appendChild(starFilterContainer);
-    controlArea.appendChild(hideButton);
+    const selectors = ['.collectionItem', '.workshopItemCollection', '.workshopItem'];
+    for (const selector of selectors) {
+        const els = document.querySelectorAll(selector);
+        if (els.length) return Array.from(els);
+    }
+    return [];
 }
 
 function getStarRating(item) {
+    // New UI: rating widget is filled + unfilled star SVGs.
+    if (item.querySelector('svg.SVGIcon_Star_Filled, svg.SVGIcon_Star_Unfilled')) {
+        return item.querySelectorAll('svg.SVGIcon_Star_Filled').length;
+    }
+
+    // Classic UI: rating encoded in the .fileRating image source.
     const ratingImg = item.querySelector('.fileRating');
     if (!ratingImg) return 0;
-    
-    // Extract star rating from image source
-    const src = ratingImg.src;
-    if (src.includes('5-star')) return 5;
-    if (src.includes('4-star')) return 4;
-    if (src.includes('3-star')) return 3;
-    if (src.includes('2-star')) return 2;
-    if (src.includes('1-star')) return 1;
-    
-    // Alternative method using data attribute if available
-    if (ratingImg.dataset.rating) {
-        return parseInt(ratingImg.dataset.rating);
+    const src = ratingImg.src || '';
+    for (let n = 5; n >= 1; n--) {
+        if (src.includes(n + '-star')) return n;
     }
-    
+    if (ratingImg.dataset.rating) return parseInt(ratingImg.dataset.rating, 10) || 0;
     return 0;
 }
 
 function isSubscribed(item) {
+    // New UI: the green add button shows a check icon once subscribed.
+    const addButton = item.querySelector('button[data-accent-color="green"]');
+    if (addButton) return !!addButton.querySelector('svg.SVGIcon_Check');
+
+    // Classic UI.
     const subscriptionIcon = item.querySelector('.user_action_history_icon.subscribed');
-    if (subscriptionIcon && subscriptionIcon.style.display !== 'none') {
-        return true;
-    }
+    if (subscriptionIcon && subscriptionIcon.style.display !== 'none') return true;
 
     const subscribeBtn = item.querySelector('.general_btn.subscribe');
-    if (subscribeBtn && subscribeBtn.classList.contains('toggled')) {
-        return true;
-    }
+    if (subscribeBtn && subscribeBtn.classList.contains('toggled')) return true;
 
     return false;
 }
 
+/* ------------------------------ Filtering ----------------------------- */
+
 function applyFilters() {
-    const selectors = [
-        '.collectionItem',
-        '.workshopItemCollection', 
-        '.workshopItem'
-    ];
-
-    const itemsToFilter = selectors
-        .map(selector => document.querySelectorAll(selector))
-        .find(elements => elements.length > 0) || document.querySelectorAll(selectors[2]);
-
-    Array.from(itemsToFilter).forEach(item => {
+    getItemCards().forEach(item => {
         const starRating = getStarRating(item);
-        const isStarFilterPassed = currentStarFilter === 0 || starRating >= currentStarFilter;
-        const isSubscriptionFilterPassed = !isHidingSubscribed || !isSubscribed(item);
-        const shouldHideItem = !isStarFilterPassed || !isSubscriptionFilterPassed;
-
-        item.classList.toggle('hidden-item', shouldHideItem);
+        const passesStar = currentStarFilter === 0 || starRating >= currentStarFilter;
+        const passesSub = !isHidingSubscribed || !isSubscribed(item);
+        item.classList.toggle('hidden-item', !(passesStar && passesSub));
     });
 }
 
-function toggleSubscribedItems() {
-    const button = document.querySelector('.hide-subscribed-button:not(.star-filter-button)');
-    isHidingSubscribed = !isHidingSubscribed;
-    
-    chrome.storage.local.set({ hideSubscribed: isHidingSubscribed });
-    
-    if (isHidingSubscribed) {
-        button.classList.add('active');
-        button.textContent = 'Showing New Items';
-    } else {
-        button.classList.remove('active');
-        button.textContent = 'Hide Subscribed';
-    }
-    
-    applyFilters();
+/* ------------------------------- Controls ----------------------------- */
+
+function starButtonLabel() {
+    if (currentStarFilter === 0) return 'Star Rating';
+    return currentStarFilter === 5 ? '5 Stars' : `${currentStarFilter}+ Stars`;
 }
 
-function applyFiltersIfNeeded() {
-    createButtons();
-    if (isHidingSubscribed || currentStarFilter > 0) {
+function createControls() {
+    if (document.querySelector('.swfp-controls')) return; // already injected
+
+    const nativeClass = getNativeButtonClass();
+    const isNewUi = !!nativeClass;
+
+    const group = document.createElement('div');
+    group.className = 'swfp-controls' + (isNewUi ? ' swfp-native' : '');
+
+    /* --- Star-rating dropdown --- */
+    const dropdown = document.createElement('div');
+    dropdown.className = 'swfp-dropdown';
+
+    const starBtn = document.createElement('button');
+    starBtn.type = 'button';
+    starBtn.className = 'swfp-btn ' + nativeClass;
+    starBtn.style.setProperty('--min-width', 'fit-content');
+    starBtn.innerHTML =
+        `<span class="swfp-btn-inner">${ICON.star}<span class="swfp-label"></span>${ICON.caret}</span>`;
+
+    const menu = document.createElement('div');
+    menu.className = 'swfp-menu';
+    STAR_OPTIONS.forEach(opt => {
+        const row = document.createElement('div');
+        row.className = 'swfp-option';
+        row.dataset.stars = String(opt.stars);
+        const star = opt.stars
+            ? '<span class="swfp-opt-star">★</span>'
+            : '<span class="swfp-opt-star swfp-opt-star--empty"></span>';
+        row.innerHTML =
+            `<span class="swfp-check">${ICON.check}</span>${star}<span>${opt.label}</span>`;
+        menu.appendChild(row);
+    });
+
+    /* --- Hide-subscribed toggle --- */
+    const hideBtn = document.createElement('button');
+    hideBtn.type = 'button';
+    hideBtn.className = 'swfp-btn ' + nativeClass;
+    hideBtn.style.setProperty('--min-width', 'fit-content');
+
+    function renderStar() {
+        starBtn.querySelector('.swfp-label').textContent = starButtonLabel();
+        starBtn.setAttribute('data-accent-color', currentStarFilter ? 'blue' : 'dull');
+        menu.querySelectorAll('.swfp-option').forEach(o => {
+            o.classList.toggle('swfp-selected', parseInt(o.dataset.stars, 10) === currentStarFilter);
+        });
+    }
+
+    function renderHide() {
+        hideBtn.setAttribute('data-accent-color', isHidingSubscribed ? 'blue' : 'dull');
+        hideBtn.classList.toggle('swfp-active', isHidingSubscribed);
+        const icon = isHidingSubscribed ? ICON.eyeOff : ICON.eye;
+        const text = isHidingSubscribed ? 'Showing New' : 'Hide Subscribed';
+        hideBtn.innerHTML = `<span class="swfp-btn-inner">${icon}<span class="swfp-label">${text}</span></span>`;
+    }
+
+    starBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        dropdown.classList.toggle('swfp-open');
+    });
+
+    menu.addEventListener('click', e => {
+        const option = e.target.closest('.swfp-option');
+        if (!option) return;
+        currentStarFilter = parseInt(option.dataset.stars, 10);
+        chrome.storage.local.set({ starFilter: currentStarFilter });
+        dropdown.classList.remove('swfp-open');
+        renderStar();
         applyFilters();
-    }
-}
-
-function loadFilters() {
-    chrome.storage.local.get(['hideSubscribed', 'starFilter'], (data) => {
-        isHidingSubscribed = data.hideSubscribed || false;
-        currentStarFilter = data.starFilter || 0;
-        applyFiltersIfNeeded();
     });
+
+    document.addEventListener('click', () => dropdown.classList.remove('swfp-open'));
+
+    hideBtn.addEventListener('click', () => {
+        isHidingSubscribed = !isHidingSubscribed;
+        chrome.storage.local.set({ hideSubscribed: isHidingSubscribed });
+        renderHide();
+        applyFilters();
+    });
+
+    renderStar();
+    renderHide();
+
+    dropdown.appendChild(starBtn);
+    dropdown.appendChild(menu);
+    group.appendChild(dropdown);
+    group.appendChild(hideBtn);
+
+    placeControls(group);
 }
 
-function init() {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadFilters);
-    } else {
-        loadFilters();
-    }
-}
-
-// Set up mutation observer to handle dynamically loaded content
-const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        if (mutation.addedNodes.length) {
-            applyFiltersIfNeeded();
+// Insert the control group next to Steam's search/sort bar (new UI) or the
+// classic control bar, falling back to a floating panel.
+function placeControls(group) {
+    const search = document.querySelector('input[name="SearchInput"]');
+    if (search) {
+        const form = search.closest('form');
+        const host = form ? form.parentElement : search.parentElement;
+        if (host) {
+            group.classList.add('swfp-inline');
+            host.appendChild(group);
+            return;
         }
     }
-});
 
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
+    const classicBar = document.querySelector(
+        '.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls'
+    );
+    if (classicBar) {
+        group.classList.add('swfp-inline');
+        classicBar.appendChild(group);
+        return;
+    }
 
-init();
+    // Last resort: only float a panel if there is actually content to filter.
+    if (getItemCards().length) {
+        group.classList.add('swfp-floating');
+        document.body.appendChild(group);
+    }
+}
+
+/* ------------------------------- Lifecycle ---------------------------- */
+
+function tick() {
+    if (!stateLoaded) return;
+    createControls();
+    if (isHidingSubscribed || currentStarFilter > 0) applyFilters();
+}
+
+function start() {
+    chrome.storage.local.get(['hideSubscribed', 'starFilter'], data => {
+        isHidingSubscribed = !!data.hideSubscribed;
+        currentStarFilter = data.starFilter || 0;
+        stateLoaded = true;
+        tick();
+    });
+}
+
+// The new UI re-renders constantly; throttle so we react to added content
+// without re-running on every mutation.
+let scheduled = false;
+const observer = new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(() => {
+        scheduled = false;
+        tick();
+    }, 150);
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+} else {
+    start();
+}

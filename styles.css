@@ -1,54 +1,166 @@
 /* styles.css */
-.hide-subscribed-button {
-    background-color: #67c1f5;
-    border: none;
-    border-radius: 2px;
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    margin-left: 10px;
-    padding: 5px 10px;
-    transition: all 0.2s ease;
+
+/* ------------------------------------------------------------------ *
+ * Control group layout                                               *
+ * ------------------------------------------------------------------ */
+.swfp-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
 }
 
-.hide-subscribed-button.active {
-    background-color: #2a475e;
+.swfp-controls.swfp-inline {
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Floating fallback panel (used only when no toolbar anchor is found) */
+.swfp-controls.swfp-floating {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    z-index: 2147483000;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #171d25;
+    border: 1px solid #3d4650;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+
+/* ------------------------------------------------------------------ *
+ * Buttons                                                            *
+ * ------------------------------------------------------------------ */
+.swfp-btn {
+    cursor: pointer;
+}
+
+.swfp-btn-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.swfp-glyph {
+    flex: 0 0 auto;
+}
+
+.swfp-caret {
+    flex: 0 0 auto;
+    margin-left: 2px;
+    opacity: 0.8;
+    transition: transform 0.15s ease;
+}
+
+.swfp-dropdown.swfp-open .swfp-caret {
+    transform: rotate(180deg);
+}
+
+/*
+ * On the new UI our buttons clone Steam's own button classes + data-accent-color,
+ * so their background/padding/radius come from Steam. We only add spacing above.
+ * On the classic UI (no native classes) we provide our own pill styling.
+ */
+.swfp-controls:not(.swfp-native) .swfp-btn {
+    border: none;
+    border-radius: 3px;
+    padding: 7px 12px;
+    font-size: 13px;
+    color: #ffffff;
+    background: #3d6c8d;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.swfp-controls:not(.swfp-native) .swfp-btn:hover {
+    background: #4f86ab;
+}
+
+.swfp-controls:not(.swfp-native) .swfp-btn.swfp-active {
+    background: #66c0f4;
+    color: #0b1419;
     font-weight: bold;
 }
 
-.hidden-item {
-    display: none !important;
+/* ------------------------------------------------------------------ *
+ * Star-rating dropdown menu                                          *
+ * ------------------------------------------------------------------ */
+.swfp-dropdown {
+    position: relative;
+    display: inline-block;
 }
 
-.star-filter-button {
-    margin-right: 5px;
-}
-
-.star-dropdown-content {
+.swfp-menu {
     display: none;
     position: absolute;
-    background-color: #171a21;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1000;
-    border: 1px solid #4d4d4d;
-    border-radius: 2px;
-    top: 100%;
+    top: calc(100% + 6px);
     left: 0;
+    z-index: 2147483001;
+    min-width: 190px;
+    padding: 6px;
+    flex-direction: column;
+    gap: 2px;
+    background: #1a212b;
+    border: 1px solid #3d4650;
+    border-radius: 8px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
 }
 
-.star-dropdown-content.show {
-    display: block;
+.swfp-dropdown.swfp-open .swfp-menu {
+    display: flex;
 }
 
-.star-option {
-    color: white;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
+.swfp-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    color: #c6d4df;
     cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
 }
 
-.star-option:hover {
-    background-color: #2a475e;
+.swfp-option:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #ffffff;
+}
+
+.swfp-option.swfp-selected {
+    color: #66c0f4;
+}
+
+/* leading check marks the active option */
+.swfp-check {
+    display: inline-flex;
+    width: 13px;
+    flex: 0 0 13px;
+    color: #66c0f4;
+    visibility: hidden;
+}
+
+.swfp-option.swfp-selected .swfp-check {
+    visibility: visible;
+}
+
+.swfp-opt-star {
+    width: 12px;
+    flex: 0 0 12px;
+    text-align: center;
+    color: #f5c518;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.swfp-opt-star--empty {
+    color: transparent;
+}
+
+/* ------------------------------------------------------------------ *
+ * Hidden items                                                       *
+ * ------------------------------------------------------------------ */
+.hidden-item {
+    display: none !important;
 }
