@@ -87,7 +87,7 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 - Detects items, star ratings, and subscription state using stable selectors that survive Steam's hashed class names
 - On the new UI, the Hide Subscribed and Star Rating controls sit beside Steam's "Most Popular" sort dropdown, clone its styling, and match its exact width and height so all three read as a uniform set (order: Hide, Star, Most Popular)
 - Star Rating menu restyled to match Steam's native dropdown (dark panel, section header, radio options)
-- Works on collection pages: controls are added to the "Subscribe to all" row (below the description) and match the surrounding buttons
+- Works on collection pages: controls are added on their own line just below the "Subscribe to all" row (below the description) and match the surrounding buttons
 - Classic Workshop UI (browse and collections) remains fully supported, with a floating fallback if no toolbar can be found
 - Throttled dynamic-content handling for smoother performance on the new React-based pages
 

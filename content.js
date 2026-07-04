@@ -143,10 +143,11 @@ function getPlacement() {
     if (sort && sort.parentElement) {
         return { mode: 'new', host: sort.parentElement, before: sort, refClass: sort.className, ref: sort };
     }
-    // Classic collection: next to the "Subscribe to all" row (below the description).
+    // Classic collection: on its own line right below the "Subscribe to all" row
+    // (below the description) so it doesn't squeeze Steam's buttons.
     const sc = document.querySelector('.subscribeCollection');
-    if (sc) {
-        return { mode: 'classic', host: sc, before: sc.querySelector('div[style*="clear"]'), refClass: 'general_btn' };
+    if (sc && sc.parentElement) {
+        return { mode: 'classic', host: sc.parentElement, before: sc.nextSibling, refClass: 'general_btn' };
     }
     // Classic browse.
     const bar = document.querySelector(
@@ -280,7 +281,9 @@ function createControls() {
 }
 
 // New UI only: size our two controls to match Steam's sort dropdown exactly so
-// all three read as a uniform set.
+// all three read as a uniform set. getBoundingClientRect() forces layout, so
+// this is only called when the size is not yet locked or the sort control was
+// replaced by a re-render (see tick) — never on every mutation.
 function sizeControls() {
     const group = document.querySelector('.swfp-controls.swfp-native');
     if (!group) return;
@@ -290,6 +293,7 @@ function sizeControls() {
     if (r.width > 40) {
         group.style.setProperty('--swfp-w', Math.round(r.width) + 'px');
         group.style.setProperty('--swfp-h', Math.round(r.height) + 'px');
+        group.dataset.sized = '1';
     }
 }
 
@@ -298,7 +302,12 @@ function sizeControls() {
 function tick() {
     if (!stateLoaded) return;
     createControls();
-    sizeControls();
+    // Measure only when the size isn't locked yet, or Steam replaced the sort
+    // control (React re-render) — avoids a layout reflow on every mutation.
+    const group = document.querySelector('.swfp-controls.swfp-native');
+    if (group && (!group.dataset.sized || (sortEl && !sortEl.isConnected))) {
+        sizeControls();
+    }
     if (isHidingSubscribed || currentStarFilter > 0) applyFilters();
 }
 

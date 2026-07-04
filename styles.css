@@ -14,10 +14,6 @@
     font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
 }
 
-.swfp-controls.swfp-classic {
-    margin-left: 4px;
-}
-
 /* Floating fallback panel (used only when no toolbar anchor is found) */
 .swfp-controls.swfp-floating {
     position: fixed;
@@ -41,6 +37,7 @@
     cursor: pointer;
     line-height: 1;
     white-space: nowrap;
+    overflow: hidden;
     user-select: none;
     box-sizing: border-box;
 }
@@ -69,18 +66,28 @@
     transform: rotate(180deg);
 }
 
-/* --- New UI: clone Steam's sort-dropdown class list, and match its exact
- * width + height so the three controls are a uniform set. --- */
+/* --- New UI: clone Steam's sort-dropdown class list, and lock every control to
+ * the sort dropdown's exact width + height so all three are a uniform set and
+ * do NOT resize when the label changes. !important + a fixed flex basis beat any
+ * width rule inherited from the cloned Steam class. --- */
 .swfp-controls.swfp-native > .swfp-dropdown,
 .swfp-controls.swfp-native > .swfp-btn {
-    width: var(--swfp-w);
+    flex: 0 0 var(--swfp-w) !important;
+    width: var(--swfp-w) !important;
+    min-width: var(--swfp-w) !important;
+    max-width: var(--swfp-w) !important;
     min-height: var(--swfp-h);
+    box-sizing: border-box !important;
 }
 
 /* the star button fills its dropdown wrapper (which is already one item wide) */
 .swfp-controls.swfp-native .swfp-dropdown .swfp-btn {
-    width: 100%;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
     min-height: var(--swfp-h);
+    box-sizing: border-box !important;
 }
 
 .swfp-controls.swfp-native .swfp-btn.swfp-active .swfp-label {
@@ -93,10 +100,23 @@
 }
 
 /* --- Classic UI: clone .general_btn so we match the neighbouring
- * "Subscribe to all" buttons; keep the icon + label inline. --- */
+ * "Subscribe to all" buttons. Sit on our own line just below that row so we
+ * never squeeze Steam's buttons, and keep each label on a single line. --- */
+.swfp-controls.swfp-classic {
+    margin: 10px 0 4px;
+}
+
 .swfp-controls.swfp-classic .swfp-btn {
     display: inline-flex;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
     text-decoration: none;
+}
+
+.swfp-controls.swfp-classic .swfp-label {
+    overflow: visible;
+    text-overflow: clip;
 }
 
 .swfp-controls.swfp-classic .swfp-btn.swfp-active .swfp-label,
