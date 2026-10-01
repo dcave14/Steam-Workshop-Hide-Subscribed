@@ -44,9 +44,27 @@ Every runtime round must re-run the filter variation matrix: capture all three c
 (x/y/w/h), the two gaps and the computed font-size as a baseline, then sweep every sort option,
 every star state (default, 1+..5+), the hide toggle off/on/off, and at least 3 mixed combos,
 asserting every capture matches the baseline (<=0.5px) with no ellipsis on known labels at 1576.
-Also repeat two different sort options at 1280 and on the fallback path (640/520). Exact steps
+Also repeat two different sort options at 1280 (main path; their rects must match each other).
+On the fallback path (640/520) the native sort's forced width is CLEARED - it sits at its
+natural width and may wrap to a second row - so there compare only our two buttons' equal
+widths and label independence. Exact steps
 and screenshots: acceptance items 8-17 of
 `.opencode/tasks/2026-10-01-stable-geometry-across-filters.md`.
+
+Heavy-filter case (round 3): the matrix must also include a star filter that leaves FEWER THAN
+3 visible cards and one that leaves only 1-2 rows. Every button rect, both gaps and the computed
+font must still match the unfiltered baseline: the scan derives W/columns from the unfiltered
+grid structure, so filtering cannot move anything. Fallback-latch recovery: if the fallback
+layout ever appears (see the row-wrap signature in the round-3 notes), any filter change, DOM
+mutation or window resize must restore the grid placement with the native sort at the shared
+width - the fallback must never stick. Canonical <3-visible repro: `browsesort=mostrecent` plus
+the "5 Stars Only" star option hides all 30 sample rows (30/30 hidden, 0 visible) - the exact
+pre-fix fallback trigger. Measurement-side note: the geometry probe temporarily un-hides our
+`hidden-item` cards in a synchronous batch and re-hides them; expect remove+add mutation pairs
+during probes, and after any measurement-triggering action verify filtered rows are STILL
+hidden (leak count must be zero) with no visible flicker.
+- Helper reference: `WSHSDom.getSortOptionLabels` (steam-dom.js) returns the native sort
+  dropdown's option label list used to seed the frozen worst-case ink constant.
 
 ### Round-2 runtime notes (native sort anatomy and login-gated checks)
 
@@ -71,6 +89,23 @@ and screenshots: acceptance items 8-17 of
 - Console budget: the "at most one [WSHS] warn" allowance is per page load (one page
   lifecycle), not per state; sweeps and resizes must not add a second warning. The budget
   counts only [warn] lines (the error budget is zero; other console levels are unrestricted).
+
+### Round-3 runtime notes (heavy filters, fallback signature, screenshot measurement)
+
+- Star dropdown label mapping: the option text for the top state is "5 Stars Only" (options:
+  "Show All", "5 Stars Only", "4+ Stars", "3+ Stars", "2+ Stars", "1+ Stars"), while the button
+  label it produces is "5+ Stars". A naive snapshot-regex harness that clicks the option text
+  and then asserts the same text on the button breaks; select the option by its `data-stars`
+  value or position and assert the button label separately.
+- Fallback signature in a screenshot: our two buttons (star, hide) are right-anchored in the
+  injected wrapper at the ~4px wrapper gap and the native sort button wraps to a SECOND row
+  below them (the wrapper is `margin-left:auto` inside Steam's flex-wrap row). The shared width
+  is then the frozen Iworst+78 fallback constant (~255.2px), not the card width. The second-row
+  sort is the quickest way to identify the fallback path in a screenshot.
+- Pixel-measuring user screenshots: run a local System.Drawing script (PowerShell
+  `Add-Type -AssemblyName System.Drawing`, load the PNG, scan a horizontal pixel line for the
+  dark button-background runs) and report button edges and gaps in pixels; user screenshots are
+  1:1. Sanity anchors at 13px: label ink ~67.1px for "Star Rating" and ~50.2px for "5+ Stars".
 
 ## Screenshots
 

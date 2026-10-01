@@ -359,48 +359,68 @@
     }
 
     // Geometry of the card grid for the round-4 button layout: card border-box
-    // width, gap between columns, column count and a representative visible card
-    // to observe for reflows. Cards hidden by filtering have no box and are
-    // skipped. Returns null when no card is measurable.
+    // width, gap between columns, column count and a representative card to
+    // observe for reflows. Cards hidden by our filtering are display:none and
+    // would report a zero box, which used to make W/columns depend on how many
+    // cards a star/hide filter left visible (fallback latch). They are
+    // un-hidden for this synchronous measurement and restored before the
+    // function returns, so the result always describes the unfiltered grid and
+    // filtering can never change the button geometry. Only genuinely invisible
+    // cards (still zero after the pass) are skipped. Returns null when no card
+    // is measurable.
     function getCardGeometry() {
         var cards = enumerateCards();
-        var rects = [];
-        for (var i = 0; i < cards.length; i++) {
-            var box = cards[i].root.getBoundingClientRect();
-            if (box.width < 60) continue;
-            rects.push({ left: box.left, top: box.top, width: box.width, root: cards[i].root });
+        var unhidden = [];
+        for (var u = 0; u < cards.length; u++) {
+            var hiddenRoot = cards[u].root;
+            if (hiddenRoot.classList && hiddenRoot.classList.contains('hidden-item')) {
+                hiddenRoot.classList.remove('hidden-item');
+                unhidden.push(hiddenRoot);
+            }
         }
-        if (!rects.length) return null;
-        rects.sort(function (a, b) { return a.left - b.left || a.top - b.top; });
-        var columns = [];
-        for (var j = 0; j < rects.length; j++) {
-            var entry = rects[j];
-            var column = null;
-            for (var k = 0; k < columns.length; k++) {
-                if (Math.abs(columns[k].left - entry.left) < 2) {
-                    column = columns[k];
-                    break;
+        try {
+            var rects = [];
+            for (var i = 0; i < cards.length; i++) {
+                var box = cards[i].root.getBoundingClientRect();
+                if (box.width < 60) continue;
+                rects.push({ left: box.left, top: box.top, width: box.width, root: cards[i].root });
+            }
+            if (!rects.length) return null;
+            rects.sort(function (a, b) { return a.left - b.left || a.top - b.top; });
+            var columns = [];
+            for (var j = 0; j < rects.length; j++) {
+                var entry = rects[j];
+                var column = null;
+                for (var k = 0; k < columns.length; k++) {
+                    if (Math.abs(columns[k].left - entry.left) < 2) {
+                        column = columns[k];
+                        break;
+                    }
                 }
+                if (!column) {
+                    column = { left: entry.left, widths: [] };
+                    columns.push(column);
+                }
+                column.widths.push(entry.width);
             }
-            if (!column) {
-                column = { left: entry.left, widths: [] };
-                columns.push(column);
+            columns.sort(function (a, b) { return a.left - b.left; });
+            var widths = [];
+            for (var m = 0; m < columns.length; m++) {
+                widths.push(median(columns[m].widths));
             }
-            column.widths.push(entry.width);
+            var width = median(widths);
+            var gaps = [];
+            for (var n = 1; n < columns.length; n++) {
+                gaps.push(columns[n].left - columns[n - 1].left - width);
+            }
+            var gap = gaps.length ? median(gaps) : 0;
+            if (!(gap >= 0)) gap = 0;
+            return { width: width, gap: gap, columns: columns.length, card: rects[0].root };
+        } finally {
+            for (var r = 0; r < unhidden.length; r++) {
+                unhidden[r].classList.add('hidden-item');
+            }
         }
-        columns.sort(function (a, b) { return a.left - b.left; });
-        var widths = [];
-        for (var m = 0; m < columns.length; m++) {
-            widths.push(median(columns[m].widths));
-        }
-        var width = median(widths);
-        var gaps = [];
-        for (var n = 1; n < columns.length; n++) {
-            gaps.push(columns[n].left - columns[n - 1].left - width);
-        }
-        var gap = gaps.length ? median(gaps) : 0;
-        if (!(gap >= 0)) gap = 0;
-        return { width: width, gap: gap, columns: columns.length, card: rects[0].root };
     }
 
     // ---------------------------------------------------------------------

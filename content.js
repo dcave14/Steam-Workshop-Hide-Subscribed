@@ -16,6 +16,11 @@ const BUTTON_CHROME_WIDTH = 62;
 const GAP_FLOOR = 8;
 const GAP_CEIL = 20;
 
+// Frozen fallback ink for the worst known label ("Most Popular (Three Months)"
+// measures ~177.2px at F). Used only when the measuring probe fails entirely
+// (Iworst==0), so geometry never falls back to live label text.
+const IWORST_FALLBACK_ESTIMATE = 180;
+
 // Frozen worst-case label set (Iworst is the max ink over this set at F, plus
 // any sort options enumerated from the live dropdown). Known native options.
 const SORT_OPTION_LABELS = [
@@ -324,10 +329,10 @@ function createButtons() {
         function maxInk(stateLabels, source) {
             let worst = 0;
             let worstLabel = '';
+            const style = window.getComputedStyle(source);
             for (const text of stateLabels) {
                 const label = (text || '').trim();
                 if (!label) continue;
-                const style = window.getComputedStyle(source);
                 probe.style.fontFamily = style.fontFamily;
                 probe.style.fontWeight = style.fontWeight;
                 probe.style.fontStyle = style.fontStyle;
@@ -453,10 +458,16 @@ function createButtons() {
             }
             const card = geometry && geometry.card ? geometry.card : null;
             if (!cardResizeObserver) cardResizeObserver = new ResizeObserver(() => resync());
-            if (card !== observedCard) {
+            if (card && card !== observedCard) {
                 cardResizeObserver.disconnect();
-                if (card) cardResizeObserver.observe(card);
+                cardResizeObserver.observe(card);
                 observedCard = card;
+            } else if (!card && observedCard && !observedCard.isConnected) {
+                // Fallback is active: keep observing the last live card (the
+                // observer stays attached instead of disconnecting) so a grid
+                // reflow can leave the fallback without a window resize; drop
+                // the reference only for genuinely detached nodes.
+                observedCard = null;
             }
         }
         const labelNode = liveSort && liveSort.button ? liveSort.button : null;
@@ -504,14 +515,9 @@ function createButtons() {
                 setButtonWidth(starButton, width, GAP_FLOOR);
                 setButtonWidth(hideButton, width, GAP_FLOOR);
             } else {
-                const naturalWidth = Math.max(
-                    starButton.getBoundingClientRect().width,
-                    hideButton.getBoundingClientRect().width
-                );
-                if (naturalWidth > 0) {
-                    starButton.style.width = naturalWidth + 'px';
-                    hideButton.style.width = naturalWidth + 'px';
-                }
+                const width = IWORST_FALLBACK_ESTIMATE + BUTTON_CHROME_WIDTH + 2 * GAP_FLOOR;
+                setButtonWidth(starButton, width, GAP_FLOOR);
+                setButtonWidth(hideButton, width, GAP_FLOOR);
             }
             const gap = rowGap > 0 ? rowGap : 10;
             injectedControls.style.gap = gap + 'px';
@@ -683,6 +689,10 @@ function applyFiltersIfNeeded() {
     if (isHidingSubscribed || currentStarFilter > 0) {
         applyFilters();
     }
+    // Any DOM change (added nodes branch) re-evaluates the geometry from the
+    // unfiltered grid structure, so a filter can never leave the controls in
+    // the fallback layout and a React-replaced sort button is re-resolved.
+    if (widthSync) widthSync();
 }
 
 function loadFilters() {
@@ -699,6 +709,7 @@ function init() {
             if (isHidingSubscribed || currentStarFilter > 0) {
                 applyFilters();
             }
+            if (widthSync) widthSync();
         });
     }
 
