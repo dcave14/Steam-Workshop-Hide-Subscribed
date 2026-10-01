@@ -92,6 +92,9 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
 
+### Unreleased
+- Rebuilt the injected controls in Steam's native style and placed them immediately left of the native sort button with equal width and spacing
+
 ### 1.3.0
 - Added support for Steam's new React SSR Workshop layout (CommunityTemplate), including
   `steamcommunity.com/app/*/workshop/*` pages: structural card detection, subscribed

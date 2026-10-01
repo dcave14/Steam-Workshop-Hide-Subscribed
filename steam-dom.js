@@ -357,6 +357,35 @@
         return null;
     }
 
+    function getSortButton() {
+        var scope = getControlArea();
+        var result = findSortButtonIn(scope);
+        if (result) return result;
+        return findSortButtonIn(document.getElementById('CommunityTemplate')) ||
+            findSortButtonIn(document);
+    }
+
+    // The native sort dropdown is a div[role="button"][tabindex] containing the
+    // 12x8 chevron svg. Nav dropdowns also use that chevron, so a button that
+    // contains the 32x18 sort glyph is preferred before falling back to a
+    // chevron-only match. Its parent is the fit-content wrapper used as the
+    // insertion anchor. No hashed class names are used as selectors.
+    function findSortButtonIn(scope) {
+        if (!scope) return null;
+        var buttons = scope.querySelectorAll('div[role="button"][tabindex]');
+        var chevronOnly = null;
+        for (var i = 0; i < buttons.length; i++) {
+            var button = buttons[i];
+            if (!button.querySelector('svg[viewBox="0 0 12 8"]')) continue;
+            var wrapper = button.parentElement;
+            if (!wrapper) continue;
+            var entry = { button: button, wrapper: wrapper };
+            if (button.querySelector('svg[viewBox="0 0 32 18"]')) return entry;
+            if (!chevronOnly) chevronOnly = entry;
+        }
+        return chevronOnly;
+    }
+
     function parsePublishedFileId(href) {
         var match = /[?&]id=(\d+)/.exec(href || '');
         return match ? match[1] : null;
@@ -629,6 +658,7 @@
     window.WSHSDom = {
         isNewLayout: isNewLayout,
         getControlArea: getControlArea,
+        getSortButton: getSortButton,
         applyFilters: applyFilters,
         onStatusUpdate: onStatusUpdate
     };

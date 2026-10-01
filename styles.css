@@ -1,27 +1,67 @@
 /* styles.css */
+
+/* Injected controls rebuilt with the chrome of Steam's native new-layout sort
+   button: translucent dark, blurred, square corners, 15px label. */
 .hide-subscribed-button {
-    background-color: #67c1f5;
+    background: #0000005e;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     border: none;
-    border-radius: 2px;
-    color: white;
+    box-sizing: border-box;
+    color: #c4c4c4;
     cursor: pointer;
-    font-size: 12px;
-    margin-left: 10px;
-    padding: 5px 10px;
-    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--font-family, "Motiva Sans", Twemoji, "Noto Sans", Helvetica, sans-serif);
+    font-size: 15px;
+    margin: 0;
+    padding: 10px;
 }
 
+.hide-subscribed-button:hover,
+.hide-subscribed-button:active,
 .hide-subscribed-button.active {
-    background-color: #2a475e;
-    font-weight: bold;
+    color: #fff;
+}
+
+.wshs-button-label {
+    white-space: nowrap;
+}
+
+.wshs-left-icon {
+    width: 25px;
+    height: 25px;
+    flex: none;
+}
+
+.wshs-chevron {
+    width: 17px;
+    height: auto;
+    flex: none;
+}
+
+.wshs-toggle-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    flex: none;
+    visibility: hidden;
+}
+
+.hide-subscribed-button.active .wshs-toggle-slot {
+    visibility: visible;
+}
+
+.wshs-check-icon {
+    width: 17px;
+    height: 17px;
 }
 
 .hidden-item {
     display: none !important;
-}
-
-.star-filter-button {
-    margin-right: 5px;
 }
 
 .star-dropdown-content {
@@ -53,28 +93,12 @@
     background-color: #2a475e;
 }
 
-/* Wrapper for the injected controls (legacy pages and the new React SSR layout) */
+/* Wrapper for the injected controls (legacy pages and the new React SSR layout).
+   Its gap and right margin are set at runtime to match the native sort row. */
 .wshs-injected-controls {
-    display: inline-block;
-    position: relative;
-}
-
-/* New React SSR Workshop layout (CommunityTemplate): align the controls with the
-   filter row that holds the sort dropdown and the "Filter by Date" button */
-.wshs-new-layout-controls {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin-left: 12px;
-    vertical-align: middle;
-}
-
-.wshs-new-layout-controls .hide-subscribed-button {
-    font-size: 13px;
-    margin-left: 0;
-    padding: 7px 12px;
-}
-
-.wshs-new-layout-controls .star-filter-button {
-    margin-right: 0;
+    height: fit-content;
+    gap: 10px;
+    position: relative;
 }
