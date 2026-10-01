@@ -11,10 +11,12 @@
         {
             "matches": [
                 "*://*.steamcommunity.com/workshop/*",
-                "*://*.steamcommunity.com/sharedfiles/filedetails/*"
+                "*://*.steamcommunity.com/sharedfiles/filedetails/*",
+                "*://*.steamcommunity.com/app/*/workshop/*"
             ],
-            "js": ["content.js"],
-            "css": ["styles.css"]
+            "js": ["steam-dom.js", "content.js"],
+            "css": ["styles.css"],
+            "run_at": "document_start"
         }
     ]
 }

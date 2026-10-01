@@ -13,6 +13,8 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 - Star rating filter (5 stars only, 4+ stars, etc.)
 - Remembers your preferences between browser sessions
 - Seamlessly integrates with Steam's existing UI
+- Supports both the classic Workshop layout and Steam's new React SSR Workshop layout
+  (CommunityTemplate pages such as `steamcommunity.com/app/*/workshop/*`)
 - Lightweight and performant
 
 ## Installation
@@ -29,7 +31,8 @@ Coming soon!
 
 ## Usage
 
-1. Navigate to any Steam Workshop page
+1. Navigate to any Steam Workshop page (classic pages, `steamcommunity.com/workshop/*`,
+   or the new layout pages such as `steamcommunity.com/app/*/workshop/*`)
 2. Find the filtering controls near the sorting options:
    - "Hide Subscribed" button to toggle visibility of subscribed items
    - "Star Rating" dropdown to filter by minimum star rating
@@ -43,11 +46,20 @@ The extension:
 3. Uses Chrome's storage API to remember your preferences
 4. Monitors for dynamic content loading to maintain functionality with infinite scroll
 
+On Steam's new React SSR Workshop layout (CommunityTemplate) the original item selectors
+no longer exist, so the extension uses stable structural hooks instead of hashed class
+names. Subscribed state is not part of the server-rendered HTML there: the page requests
+it from `/sharedfiles/actions?q=GetUserListStatus`, and the extension observes those
+requests (plus replays them for uncached items) to learn which cards are subscribed.
+Star ratings come from the card's star icons with the SSR `window.SSR` data
+island (`star_rating` by publishedfileid) as a fallback.
+
 ## Development
 
 ### Project Structure
 ```
 ├── manifest.json
+├── steam-dom.js
 ├── content.js
 └── styles.css
 ```
@@ -79,6 +91,13 @@ Distributed under the MIT License. See `LICENSE` for more information.
 dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
+
+### Unreleased
+- Added support for Steam's new React SSR Workshop layout (CommunityTemplate), including
+  `steamcommunity.com/app/*/workshop/*` pages: structural card detection, subscribed
+  state via observed/replayed `GetUserListStatus` queries, star counting and injected
+  controls in the new filter row
+- Kept the classic Workshop layout support unchanged
 
 ### 1.2.0
 - Added support for multiple item types (collection, workshop item, etc.)

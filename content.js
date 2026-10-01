@@ -2,8 +2,17 @@
 let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
 
+function getControlArea() {
+    const legacyArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
+    if (legacyArea) return legacyArea;
+    if (window.WSHSDom && window.WSHSDom.isNewLayout()) {
+        return window.WSHSDom.getControlArea();
+    }
+    return null;
+}
+
 function createButtons() {
-    const controlArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
+    const controlArea = getControlArea();
     if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
 
     // Create star filter dropdown button
@@ -81,8 +90,15 @@ function createButtons() {
 
     starFilterContainer.appendChild(starButton);
     starFilterContainer.appendChild(dropdownContent);
-    controlArea.appendChild(starFilterContainer);
-    controlArea.appendChild(hideButton);
+
+    const injectedControls = document.createElement('div');
+    injectedControls.className = 'wshs-injected-controls';
+    if (window.WSHSDom && window.WSHSDom.isNewLayout()) {
+        injectedControls.className += ' wshs-new-layout-controls';
+    }
+    injectedControls.appendChild(starFilterContainer);
+    injectedControls.appendChild(hideButton);
+    controlArea.appendChild(injectedControls);
 }
 
 function getStarRating(item) {
@@ -120,6 +136,14 @@ function isSubscribed(item) {
 }
 
 function applyFilters() {
+    if (window.WSHSDom && window.WSHSDom.isNewLayout()) {
+        window.WSHSDom.applyFilters({
+            isHidingSubscribed: isHidingSubscribed,
+            currentStarFilter: currentStarFilter
+        });
+        return;
+    }
+
     const selectors = [
         '.collectionItem',
         '.workshopItemCollection', 
@@ -173,6 +197,14 @@ function loadFilters() {
 }
 
 function init() {
+    if (window.WSHSDom && window.WSHSDom.onStatusUpdate) {
+        window.WSHSDom.onStatusUpdate(() => {
+            if (isHidingSubscribed || currentStarFilter > 0) {
+                applyFilters();
+            }
+        });
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadFilters);
     } else {
@@ -185,11 +217,20 @@ const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         if (mutation.addedNodes.length) {
             applyFiltersIfNeeded();
+            return;
+        }
+        for (const node of mutation.removedNodes) {
+            if (node.nodeType === 1 && (node.classList.contains('hide-subscribed-button') ||
+                node.classList.contains('wshs-injected-controls') ||
+                node.querySelector('.hide-subscribed-button'))) {
+                createButtons();
+                return;
+            }
         }
     }
 });
 
-observer.observe(document.body, {
+observer.observe(document, {
     childList: true,
     subtree: true
 });
