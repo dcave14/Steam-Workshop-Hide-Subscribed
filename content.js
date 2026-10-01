@@ -68,7 +68,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 function getControlArea() {
     // .subscribeCollection is the classic collection page's native 3-button
     // row (sharedfiles/filedetails/?id=<collectionid>), which is legacy DOM.
-    const legacyArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls, .subscribeCollection');
+    // It is resolved on its own BEFORE the legacy selector list: a collection
+    // page also contains .collectionControls > .workshopItemControls (the top
+    // review bar) earlier in document order, which a single combined
+    // querySelector would return first.
+    const collectionArea = document.querySelector('.subscribeCollection');
+    if (collectionArea) return collectionArea;
+    const legacyArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
     if (legacyArea) return legacyArea;
     if (window.WSHSDom && window.WSHSDom.isNewLayout()) {
         return window.WSHSDom.getControlArea();

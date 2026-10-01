@@ -117,11 +117,24 @@
    3px radius, 14px #939393 label, 16px icon pinned 8px from the left edge -
    with the native subscribe-button hover (#97C0E3 background, #3C3D3E text).
    Scoped to the injected wrapper so the browse-page skin above is unchanged. */
-.subscribeCollection {
-    /* The native row is too narrow for two more buttons; wrap our wrapper to a
-       second line instead of letting flexbox shrink the native buttons. */
-    flex-wrap: wrap;
-    row-gap: 8px;
+/* Only the collection bar that actually holds our controls: untouched
+   collection pages keep Steam's default layout. The native row (645px column)
+   cannot fit five controls; let the bar take its natural width on one line
+   instead of wrapping, leaving the native buttons untouched. Accepted side
+   effect: the bar strip widens 645px -> ~807px at a 1300px viewport, extending
+   into the empty page area beside the column. */
+.subscribeCollection:has(> .wshs-collection-controls) {
+    flex-wrap: nowrap;
+    width: max-content;
+}
+
+/* Narrow viewports: wrap to a second line instead of overflowing the page. */
+@media (max-width: 900px) {
+    .subscribeCollection:has(> .wshs-collection-controls) {
+        flex-wrap: wrap;
+        width: auto;
+        row-gap: 8px;
+    }
 }
 
 .wshs-injected-controls.wshs-collection-controls {
