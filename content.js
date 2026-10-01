@@ -6,6 +6,49 @@ let widthSyncCleanup = null;
 let lastOverrunLog = null;
 let fontsReadyHooked = false;
 
+// One uniform font F on all three controls (star, hide and the native sort
+// label). 13px keeps the widest known label on one line at the logged-in card
+// width W=262.5 with the 8px internal-gap floor (Iworst + 78 <= W).
+const BUTTON_FONT_SIZE = '13px';
+
+// Shared chrome: horizontal padding 20 + left icon 25 + right icon/slot 17.
+const BUTTON_CHROME_WIDTH = 62;
+const GAP_FLOOR = 8;
+const GAP_CEIL = 20;
+
+// Frozen worst-case label set (Iworst is the max ink over this set at F, plus
+// any sort options enumerated from the live dropdown). Known native options.
+const SORT_OPTION_LABELS = [
+    'Most Popular (Today)',
+    'Most Popular (One Week)',
+    'Most Popular (Three Months)',
+    'Most Popular (Six Months)',
+    'Most Popular (One Year)',
+    'Most Popular (All Time)',
+    'Most Subscribed (All Time)',
+    'Top Rated All Time',
+    'Most Recent',
+    'Last Updated',
+    'Total Unique Subscribers'
+];
+
+// Our own label states: star filter (default + 1+..5+) and hide toggle.
+const OWN_LABEL_STATES = [
+    'Star Rating',
+    '1+ Stars',
+    '2+ Stars',
+    '3+ Stars',
+    '4+ Stars',
+    '5+ Stars',
+    'Hide Subscribed',
+    'Showing New Items'
+];
+
+// Iworst is frozen per page load (re-measured only when font metrics change),
+// never from live label text.
+let worstCaseInk = null;
+let worstCaseInkLabel = '';
+
 // Steam's new layout is server-rendered and hydrated by React after the page
 // scripts run. Inserting our controls before hydration makes React report an
 // uncaught hydration mismatch (#418), so on the new layout the injection waits
@@ -250,24 +293,102 @@ function createButtons() {
         return null;
     }
 
-    // Canvas measurement of the rendered label width (advance width) using the
-    // button's own computed font. Chrome width = padding 20 + left icon 25 +
-    // right icon/slot 17 = 62; the two internal gaps share the rest.
-    let measureCanvas = null;
-    function measureLabelInk(text, source) {
-        const label = (text || '').trim();
-        if (!label) return 0;
-        try {
-            if (!measureCanvas) measureCanvas = document.createElement('canvas');
-            const context = measureCanvas.getContext('2d');
-            if (!context) return 0;
-            const style = window.getComputedStyle(source);
-            context.font = style.fontStyle + ' ' + style.fontWeight + ' ' +
-                style.fontSize + ' ' + style.fontFamily;
-            return context.measureText(label).width;
-        } catch (error) {
-            return 0;
+    // Frozen worst-case ink Iworst: the max text width over the fixed label
+    // set (plus any sort options Steam has mounted), measured once at F with a
+    // hidden fixed-position span - no layout side effects, no reading of the
+    // live button labels. Cached per page load; only a font-metrics change
+    // (document.fonts.ready) re-measures it.
+    function getWorstCaseInk(sortButton) {
+        if (worstCaseInk !== null) return worstCaseInk;
+        if (!document.body) return 0;
+
+        const labels = SORT_OPTION_LABELS.slice();
+        if (window.WSHSDom && window.WSHSDom.getSortOptionLabels) {
+            const mounted = window.WSHSDom.getSortOptionLabels();
+            for (const text of mounted) {
+                if (text && labels.indexOf(text) === -1) labels.push(text);
+            }
         }
+
+        const probe = document.createElement('span');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.position = 'fixed';
+        probe.style.left = '-99999px';
+        probe.style.top = '0';
+        probe.style.visibility = 'hidden';
+        probe.style.pointerEvents = 'none';
+        probe.style.whiteSpace = 'nowrap';
+        probe.style.display = 'inline-block';
+        document.body.appendChild(probe);
+
+        function maxInk(stateLabels, source) {
+            let worst = 0;
+            let worstLabel = '';
+            for (const text of stateLabels) {
+                const label = (text || '').trim();
+                if (!label) continue;
+                const style = window.getComputedStyle(source);
+                probe.style.fontFamily = style.fontFamily;
+                probe.style.fontWeight = style.fontWeight;
+                probe.style.fontStyle = style.fontStyle;
+                probe.style.letterSpacing = style.letterSpacing;
+                probe.style.fontSize = BUTTON_FONT_SIZE;
+                probe.textContent = label;
+                const ink = probe.getBoundingClientRect().width;
+                if (ink > worst) {
+                    worst = ink;
+                    worstLabel = label;
+                }
+            }
+            return { ink: worst, label: worstLabel };
+        }
+
+        let measured;
+        try {
+            const own = maxInk(OWN_LABEL_STATES, starButton);
+            const sortSource = sortButton && sortButton.isConnected ? sortButton : starButton;
+            const native = maxInk(labels, sortSource);
+            measured = native.ink >= own.ink ? native : own;
+        } finally {
+            probe.remove();
+        }
+
+        if (measured.ink > 0) {
+            worstCaseInk = measured.ink;
+            worstCaseInkLabel = measured.label;
+            console.debug('[WSHS] frozen worst-case label ink ' +
+                Math.round(worstCaseInk * 100) / 100 + 'px ("' + worstCaseInkLabel +
+                '") at ' + BUTTON_FONT_SIZE);
+        }
+        return worstCaseInk || 0;
+    }
+
+    // F is forced on the native sort label itself too (inline, because the page
+    // stylesheet sets 15px and React can replace the node).
+    function applyUniformFont(button) {
+        if (!button) return;
+        button.style.fontSize = BUTTON_FONT_SIZE;
+        const textSpans = button.querySelectorAll('span');
+        for (const span of textSpans) {
+            if (!span.children.length && span.textContent.trim()) {
+                span.style.fontSize = BUTTON_FONT_SIZE;
+            }
+        }
+    }
+
+    // Steam's native sort button is display:flex with justify-content:normal
+    // and a fixed gap:20px, so under our forced shared width the [sort
+    // icon][label][chevron] cluster left-packs and the slack collects after the
+    // chevron. space-between pins each icon to its 10px padding edge and splits
+    // the remaining slack around the middle item, so the label ink is centered
+    // with equal whitespace both sides - the same three-zone result the
+    // injected buttons get from their flexing label span. Padding is
+    // normalized to 10px to match the injected buttons.
+    function applyNativeSortAnatomy(button) {
+        if (!button) return;
+        button.style.justifyContent = 'space-between';
+        button.style.paddingLeft = '10px';
+        button.style.paddingRight = '10px';
     }
 
     function clearButtonGeometry(button) {
@@ -278,6 +399,9 @@ function createButtons() {
         button.style.height = '';
         button.style.minHeight = '';
         button.style.gap = '';
+        button.style.justifyContent = '';
+        button.style.paddingLeft = '';
+        button.style.paddingRight = '';
     }
 
     function setButtonWidth(button, width, gap) {
@@ -294,13 +418,13 @@ function createButtons() {
         lastOverrunLog = value;
         if (value > 0) {
             console.debug('[WSHS] shared button width overrun +' + value +
-                'px (widest label needs more than the card width)');
+                'px (frozen worst-case label needs more than the card width)');
         }
     }
 
     // Geometry observers: the sort button and its wrapper (React can clobber
     // their style), a representative card (grid reflow) and the native sort
-    // label (a period/order change re-measures the ink).
+    // button (a relabel re-applies styles; the frozen ink keeps it idempotent).
     let sortResizeObserver = null;
     let cardResizeObserver = null;
     let sortLabelObserver = null;
@@ -348,7 +472,7 @@ function createButtons() {
 
     // Round-4 geometry: all three buttons (including the native sort button)
     // share one width - the mod card width, plus a symmetric shared overrun
-    // only when the widest visible label cannot fit at the 8px internal-gap
+    // only when the frozen worst-case label cannot fit at the 8px internal-gap
     // floor. The group tiles the three rightmost card columns: [star][hide]
     // sits immediately left of the sort wrapper with the card gap between
     // them, and the native sort button keeps the grid's right edge, so the
@@ -356,6 +480,7 @@ function createButtons() {
     function resync() {
         const liveSort = getLiveSortInfo();
         const liveSortButton = liveSort ? liveSort.button : null;
+        if (liveSortButton) applyUniformFont(liveSortButton);
         const rowGap = liveSortButton ? getRowColumnGap(liveSortButton) : 0;
         const geometry = (isNewLayout && window.WSHSDom && window.WSHSDom.getCardGeometry)
             ? window.WSHSDom.getCardGeometry()
@@ -365,19 +490,28 @@ function createButtons() {
 
         // Fallback (legacy layout, unmeasurable cards, fewer than three card
         // columns, implausibly narrow card): our two buttons only, equal width
-        // to each other, gap G (row column-gap else 10px). The native sort
-        // button gets its natural geometry back.
+        // to each other, gap G (row column-gap else 10px). Width is the same
+        // frozen constant as the main path (Iworst + chrome + 2 x gap floor),
+        // so it cannot move with labels. The native sort button gets its
+        // natural geometry back.
         if (!liveSortButton || !geometry || geometry.columns < 3 || !(geometry.width >= 120)) {
             clearButtonGeometry(starButton);
             clearButtonGeometry(hideButton);
             clearButtonGeometry(liveSortButton);
-            const naturalWidth = Math.max(
-                starButton.getBoundingClientRect().width,
-                hideButton.getBoundingClientRect().width
-            );
-            if (naturalWidth > 0) {
-                starButton.style.width = naturalWidth + 'px';
-                hideButton.style.width = naturalWidth + 'px';
+            const iworst = getWorstCaseInk(liveSortButton);
+            if (iworst > 0) {
+                const width = iworst + BUTTON_CHROME_WIDTH + 2 * GAP_FLOOR;
+                setButtonWidth(starButton, width, GAP_FLOOR);
+                setButtonWidth(hideButton, width, GAP_FLOOR);
+            } else {
+                const naturalWidth = Math.max(
+                    starButton.getBoundingClientRect().width,
+                    hideButton.getBoundingClientRect().width
+                );
+                if (naturalWidth > 0) {
+                    starButton.style.width = naturalWidth + 'px';
+                    hideButton.style.width = naturalWidth + 'px';
+                }
             }
             const gap = rowGap > 0 ? rowGap : 10;
             injectedControls.style.gap = gap + 'px';
@@ -391,18 +525,14 @@ function createButtons() {
             return;
         }
 
-        // The widest visible label decides the internal gap for all three:
-        // clamp(8, (W - ink - 62) / 2, 20); at the floor a shared overrun keeps
-        // the labels single-line. Fonts, icons and padding never change.
-        const widestInk = Math.max(
-            measureLabelInk(starLabel.textContent, starButton),
-            measureLabelInk(hideLabel.textContent, hideButton),
-            measureLabelInk(liveSortButton.textContent, liveSortButton)
-        );
-        let width = geometry.width;
-        const requiredWidth = widestInk + 62 + 16;
-        if (requiredWidth > width) width = requiredWidth;
-        const gap = Math.max(8, Math.min(20, (width - widestInk - 62) / 2));
+        // Geometry is a pure function of the card grid (W) and the frozen
+        // worst-case ink Iworst; live label text never feeds width or gap:
+        // width = max(W, Iworst + 62 + 16), gap = clamp(8, (W - Iworst - 62)/2, 20).
+        // At the 8px floor a shared overrun keeps every known label single-line.
+        const iworst = getWorstCaseInk(liveSortButton);
+        const width = Math.max(geometry.width, iworst + BUTTON_CHROME_WIDTH + 2 * GAP_FLOOR);
+        const gap = Math.max(GAP_FLOOR, Math.min(GAP_CEIL,
+            (geometry.width - iworst - BUTTON_CHROME_WIDTH) / 2));
         logOverrun(width - geometry.width);
 
         // Width first (removes any wrap), then the tallest natural height
@@ -410,6 +540,7 @@ function createButtons() {
         setButtonWidth(starButton, width, gap);
         setButtonWidth(hideButton, width, gap);
         setButtonWidth(liveSortButton, width, gap);
+        applyNativeSortAnatomy(liveSortButton);
         void injectedControls.offsetHeight;
         const height = Math.max(
             starButton.getBoundingClientRect().height,
@@ -452,11 +583,12 @@ function createButtons() {
         if (sortLabelObserver) sortLabelObserver.disconnect();
     };
 
-    // Canvas ink measured before the webfont is ready would be wrong; re-run
-    // once the fonts have finished loading.
+    // The frozen ink measured before the webfont is ready would be wrong; drop
+    // the cache once fonts have loaded and re-run the (now final) measurement.
     if (!fontsReadyHooked && document.fonts && document.fonts.ready && document.fonts.ready.then) {
         fontsReadyHooked = true;
         document.fonts.ready.then(() => {
+            worstCaseInk = null;
             if (widthSync && document.querySelector('.hide-subscribed-button')) widthSync();
         }).catch(() => {});
     }

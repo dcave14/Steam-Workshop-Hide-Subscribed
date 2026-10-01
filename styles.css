@@ -1,7 +1,8 @@
 /* styles.css */
 
 /* Injected controls rebuilt with the chrome of Steam's native new-layout sort
-   button: translucent dark, blurred, square corners, 15px label. */
+   button: translucent dark, blurred, square corners, one uniform 13px label on
+   all three controls (star, hide and the native sort button). */
 .hide-subscribed-button {
     background: #0000005e;
     -webkit-backdrop-filter: blur(4px);
@@ -14,7 +15,7 @@
     align-items: center;
     gap: 20px;
     font-family: var(--font-family, "Motiva Sans", Twemoji, "Noto Sans", Helvetica, sans-serif);
-    font-size: 15px;
+    font-size:13px;
     margin: 0;
     padding: 10px;
 }
@@ -30,6 +31,10 @@
     min-width: 0;
     text-align: center;
     white-space: nowrap;
+    /* Defensive valve only: known labels stay inside the frozen worst-case
+       width, so this clips solely an unknown future label. Never resizes. */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .wshs-left-icon {

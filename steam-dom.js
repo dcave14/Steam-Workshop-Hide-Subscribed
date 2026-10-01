@@ -260,6 +260,32 @@
         return chevronOnly;
     }
 
+    // Labels of the native sort popover's options, used by content.js for the
+    // frozen worst-case ink. Steam mounts the popover children only while it is
+    // open, so a closed menu returns [] and the fixed label set in content.js
+    // is the authority; this is the live enumeration path when the popover is
+    // mounted. Options are radios in a "SORT ORDER" / "TIME FRAME" radiogroup,
+    // so only groups with such a header are read. No hashed class names.
+    function getSortOptionLabels() {
+        var labels = [];
+        var seen = {};
+        var groups = document.querySelectorAll('[role="radiogroup"]');
+        for (var i = 0; i < groups.length; i++) {
+            var group = groups[i];
+            var header = group.previousElementSibling;
+            var hint = header ? (header.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
+            if (hint.indexOf('sort') === -1 && hint.indexOf('time') === -1) continue;
+            var options = group.querySelectorAll('[role="radio"]');
+            for (var j = 0; j < options.length; j++) {
+                var text = (options[j].textContent || '').replace(/\s+/g, ' ').trim();
+                if (!text || seen[text]) continue;
+                seen[text] = true;
+                labels.push(text);
+            }
+        }
+        return labels;
+    }
+
     function parsePublishedFileId(href) {
         var match = /[?&]id=(\d+)/.exec(href || '');
         return match ? match[1] : null;
@@ -585,6 +611,7 @@
         isNewLayout: isNewLayout,
         getControlArea: getControlArea,
         getSortButton: getSortButton,
+        getSortOptionLabels: getSortOptionLabels,
         getCardGeometry: getCardGeometry,
         applyFilters: applyFilters,
         onStatusUpdate: onStatusUpdate

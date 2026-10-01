@@ -94,6 +94,7 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ### Unreleased
 - Rebuilt the injected controls in Steam's native style and placed them immediately left of the native sort button, with all three buttons sized to the mod card width and flush with the card columns below
+- The three controls now use one uniform 13px font and a frozen worst-case label width, so their geometry stays identical when the sort order or filter labels change
 
 ### 1.3.0
 - Added support for Steam's new React SSR Workshop layout (CommunityTemplate), including
