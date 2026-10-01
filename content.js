@@ -3,6 +3,8 @@ let isHidingSubscribed = false;
 let currentStarFilter = 0; // 0 means show all
 let widthSync = null;
 let widthSyncCleanup = null;
+let lastOverrunLog = null;
+let fontsReadyHooked = false;
 
 // Steam's new layout is server-rendered and hydrated by React after the page
 // scripts run. Inserting our controls before hydration makes React report an
@@ -123,7 +125,6 @@ function createButtons() {
     }
 
     let sortInfo = isNewLayout && window.WSHSDom.getSortButton ? window.WSHSDom.getSortButton() : null;
-    const sortButton = sortInfo && sortInfo.button ? sortInfo.button : null;
 
     // Star filter button: [star icon][label][chevron]. The chevron toggles the
     // existing star dropdown.
@@ -249,60 +250,185 @@ function createButtons() {
         return null;
     }
 
-    // Equal width: match the native sort button when it is present; otherwise
-    // make the two injected buttons match each other (wider one wins). Setting
-    // min-width too keeps the buttons from being flex-shrunk below the sync.
-    function syncWidths() {
-        const liveSort = getLiveSortInfo();
-        if (liveSort) {
-            let width = liveSort.button.getBoundingClientRect().width;
-            if (width < 120 && liveSort.wrapper) {
-                width = liveSort.wrapper.getBoundingClientRect().width;
+    // Canvas measurement of the rendered label width (advance width) using the
+    // button's own computed font. Chrome width = padding 20 + left icon 25 +
+    // right icon/slot 17 = 62; the two internal gaps share the rest.
+    let measureCanvas = null;
+    function measureLabelInk(text, source) {
+        const label = (text || '').trim();
+        if (!label) return 0;
+        try {
+            if (!measureCanvas) measureCanvas = document.createElement('canvas');
+            const context = measureCanvas.getContext('2d');
+            if (!context) return 0;
+            const style = window.getComputedStyle(source);
+            context.font = style.fontStyle + ' ' + style.fontWeight + ' ' +
+                style.fontSize + ' ' + style.fontFamily;
+            return context.measureText(label).width;
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    function clearButtonGeometry(button) {
+        if (!button) return;
+        button.style.boxSizing = '';
+        button.style.width = '';
+        button.style.minWidth = '';
+        button.style.height = '';
+        button.style.minHeight = '';
+        button.style.gap = '';
+    }
+
+    function setButtonWidth(button, width, gap) {
+        button.style.boxSizing = 'border-box';
+        button.style.width = width + 'px';
+        button.style.minWidth = width + 'px';
+        button.style.gap = gap + 'px';
+        button.style.height = '';
+    }
+
+    function logOverrun(overrun) {
+        const value = Math.round(overrun * 10) / 10;
+        if (value === lastOverrunLog) return;
+        lastOverrunLog = value;
+        if (value > 0) {
+            console.debug('[WSHS] shared button width overrun +' + value +
+                'px (widest label needs more than the card width)');
+        }
+    }
+
+    // Geometry observers: the sort button and its wrapper (React can clobber
+    // their style), a representative card (grid reflow) and the native sort
+    // label (a period/order change re-measures the ink).
+    let sortResizeObserver = null;
+    let cardResizeObserver = null;
+    let sortLabelObserver = null;
+    let observedSortNodes = [];
+    let observedCard = null;
+    let observedLabelNode = null;
+
+    function sameNodes(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    function observeGeometry(liveSort, geometry) {
+        const sortNodes = [];
+        if (liveSort && liveSort.button) sortNodes.push(liveSort.button);
+        if (liveSort && liveSort.wrapper) sortNodes.push(liveSort.wrapper);
+        if (typeof ResizeObserver === 'function') {
+            if (!sortResizeObserver) sortResizeObserver = new ResizeObserver(() => resync());
+            if (!sameNodes(sortNodes, observedSortNodes)) {
+                sortResizeObserver.disconnect();
+                for (const node of sortNodes) sortResizeObserver.observe(node);
+                observedSortNodes = sortNodes;
             }
-            if (width < 120) return;
-            starButton.style.width = width + 'px';
-            hideButton.style.width = width + 'px';
-            starButton.style.minWidth = width + 'px';
-            hideButton.style.minWidth = width + 'px';
+            const card = geometry && geometry.card ? geometry.card : null;
+            if (!cardResizeObserver) cardResizeObserver = new ResizeObserver(() => resync());
+            if (card !== observedCard) {
+                cardResizeObserver.disconnect();
+                if (card) cardResizeObserver.observe(card);
+                observedCard = card;
+            }
+        }
+        const labelNode = liveSort && liveSort.button ? liveSort.button : null;
+        if (labelNode !== observedLabelNode) {
+            if (sortLabelObserver) sortLabelObserver.disconnect();
+            if (labelNode && typeof MutationObserver === 'function') {
+                if (!sortLabelObserver) sortLabelObserver = new MutationObserver(() => resync());
+                sortLabelObserver.observe(labelNode, { childList: true, characterData: true, subtree: true });
+            }
+            observedLabelNode = labelNode;
+        }
+    }
+
+    // Round-4 geometry: all three buttons (including the native sort button)
+    // share one width - the mod card width, plus a symmetric shared overrun
+    // only when the widest visible label cannot fit at the 8px internal-gap
+    // floor. The group tiles the three rightmost card columns: [star][hide]
+    // sits immediately left of the sort wrapper with the card gap between
+    // them, and the native sort button keeps the grid's right edge, so the
+    // columns tile by construction. One shared height is forced on all three.
+    function resync() {
+        const liveSort = getLiveSortInfo();
+        const liveSortButton = liveSort ? liveSort.button : null;
+        const rowGap = liveSortButton ? getRowColumnGap(liveSortButton) : 0;
+        const geometry = (isNewLayout && window.WSHSDom && window.WSHSDom.getCardGeometry)
+            ? window.WSHSDom.getCardGeometry()
+            : null;
+
+        observeGeometry(liveSort, geometry);
+
+        // Fallback (legacy layout, unmeasurable cards, fewer than three card
+        // columns, implausibly narrow card): our two buttons only, equal width
+        // to each other, gap G (row column-gap else 10px). The native sort
+        // button gets its natural geometry back.
+        if (!liveSortButton || !geometry || geometry.columns < 3 || !(geometry.width >= 120)) {
+            clearButtonGeometry(starButton);
+            clearButtonGeometry(hideButton);
+            clearButtonGeometry(liveSortButton);
+            const naturalWidth = Math.max(
+                starButton.getBoundingClientRect().width,
+                hideButton.getBoundingClientRect().width
+            );
+            if (naturalWidth > 0) {
+                starButton.style.width = naturalWidth + 'px';
+                hideButton.style.width = naturalWidth + 'px';
+            }
+            const gap = rowGap > 0 ? rowGap : 10;
+            injectedControls.style.gap = gap + 'px';
+            if (liveSortButton) {
+                injectedControls.style.marginLeft = 'auto';
+                injectedControls.style.marginRight = rowGap > 0 ? '' : gap + 'px';
+            } else {
+                injectedControls.style.marginLeft = '';
+                injectedControls.style.marginRight = '';
+            }
             return;
         }
-        starButton.style.width = '';
-        hideButton.style.width = '';
-        starButton.style.minWidth = '';
-        hideButton.style.minWidth = '';
-        const width = Math.max(
-            starButton.getBoundingClientRect().width,
-            hideButton.getBoundingClientRect().width
+
+        // The widest visible label decides the internal gap for all three:
+        // clamp(8, (W - ink - 62) / 2, 20); at the floor a shared overrun keeps
+        // the labels single-line. Fonts, icons and padding never change.
+        const widestInk = Math.max(
+            measureLabelInk(starLabel.textContent, starButton),
+            measureLabelInk(hideLabel.textContent, hideButton),
+            measureLabelInk(liveSortButton.textContent, liveSortButton)
         );
-        if (width > 0) {
-            starButton.style.width = width + 'px';
-            hideButton.style.width = width + 'px';
-        }
-    }
+        let width = geometry.width;
+        const requiredWidth = widestInk + 62 + 16;
+        if (requiredWidth > width) width = requiredWidth;
+        const gap = Math.max(8, Math.min(20, (width - widestInk - 62) / 2));
+        logOverrun(width - geometry.width);
 
-    // Uniform gap G: the sort row's flex column-gap when it has one, otherwise
-    // 10px. The row on the new layout is a space-between flex container, so our
-    // wrapper becomes a middle item and the slack collects between it and the
-    // sort button; a left auto margin absorbs that free space and makes the
-    // cluster hug the sort button. Without a row gap, a right margin supplies
-    // the wrapper-to-sort gap. Re-run this on resize.
-    function applySpacing() {
-        const liveSort = getLiveSortInfo();
-        const rowGap = liveSort ? getRowColumnGap(liveSort.button) : 0;
-        const gap = rowGap > 0 ? rowGap : 10;
-        injectedControls.style.gap = gap + 'px';
-        if (liveSort) {
-            injectedControls.style.marginLeft = 'auto';
-            injectedControls.style.marginRight = rowGap > 0 ? '' : gap + 'px';
-        } else {
-            injectedControls.style.marginLeft = '';
-            injectedControls.style.marginRight = '';
+        // Width first (removes any wrap), then the tallest natural height
+        // measured with the width in place, forced on all three.
+        setButtonWidth(starButton, width, gap);
+        setButtonWidth(hideButton, width, gap);
+        setButtonWidth(liveSortButton, width, gap);
+        void injectedControls.offsetHeight;
+        const height = Math.max(
+            starButton.getBoundingClientRect().height,
+            hideButton.getBoundingClientRect().height,
+            liveSortButton.getBoundingClientRect().height
+        );
+        if (height > 0) {
+            starButton.style.height = height + 'px';
+            hideButton.style.height = height + 'px';
+            liveSortButton.style.height = height + 'px';
         }
-    }
 
-    function resync() {
-        applySpacing();
-        syncWidths();
+        // External gaps equal the card gap: the wrapper's own gap covers
+        // star->hide; the row's flex column-gap covers part of hide->sort, so
+        // a margin supplies the remainder.
+        const cardGap = geometry.gap > 0 ? geometry.gap : 0;
+        injectedControls.style.gap = cardGap + 'px';
+        injectedControls.style.marginLeft = 'auto';
+        injectedControls.style.marginRight = Math.max(0, cardGap - rowGap) + 'px';
     }
     widthSync = resync;
 
@@ -318,16 +444,22 @@ function createButtons() {
     starFilterContainer.style.flex = 'none';
     hideButton.style.flex = 'none';
 
-    let resizeObserver = null;
-    if (sortButton && typeof ResizeObserver === 'function') {
-        resizeObserver = new ResizeObserver(() => resync());
-        resizeObserver.observe(sortButton);
-    }
     window.addEventListener('resize', resync);
     widthSyncCleanup = () => {
         window.removeEventListener('resize', resync);
-        if (resizeObserver) resizeObserver.disconnect();
+        if (sortResizeObserver) sortResizeObserver.disconnect();
+        if (cardResizeObserver) cardResizeObserver.disconnect();
+        if (sortLabelObserver) sortLabelObserver.disconnect();
     };
+
+    // Canvas ink measured before the webfont is ready would be wrong; re-run
+    // once the fonts have finished loading.
+    if (!fontsReadyHooked && document.fonts && document.fonts.ready && document.fonts.ready.then) {
+        fontsReadyHooked = true;
+        document.fonts.ready.then(() => {
+            if (widthSync && document.querySelector('.hide-subscribed-button')) widthSync();
+        }).catch(() => {});
+    }
 
     resync();
 }
@@ -445,6 +577,17 @@ function init() {
     }
 }
 
+// True when a removed node was (or contained) the native sort button, so the
+// geometry sync can re-resolve the replacement instead of freezing.
+function nodeContainsSortButton(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.matches && node.matches('div[role="button"][tabindex]') &&
+        node.querySelector('svg[viewBox="0 0 12 8"]')) {
+        return true;
+    }
+    return !!(node.querySelector && node.querySelector('div[role="button"][tabindex] svg[viewBox="0 0 12 8"]'));
+}
+
 // Set up mutation observer to handle dynamically loaded content
 const observer = new MutationObserver((mutations) => {
     lastDomMutationAt = Date.now();
@@ -458,6 +601,11 @@ const observer = new MutationObserver((mutations) => {
                 node.classList.contains('wshs-injected-controls') ||
                 node.querySelector('.hide-subscribed-button'))) {
                 createButtons();
+                return;
+            }
+            if (widthSync && nodeContainsSortButton(node)) {
+                // React replaced the native sort node; re-resolve and re-apply.
+                widthSync();
                 return;
             }
         }

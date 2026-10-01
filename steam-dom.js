@@ -325,6 +325,58 @@
         return cards;
     }
 
+    function median(values) {
+        if (!values.length) return 0;
+        var sorted = values.slice().sort(function (a, b) { return a - b; });
+        var mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    // Geometry of the card grid for the round-4 button layout: card border-box
+    // width, gap between columns, column count and a representative visible card
+    // to observe for reflows. Cards hidden by filtering have no box and are
+    // skipped. Returns null when no card is measurable.
+    function getCardGeometry() {
+        var cards = enumerateCards();
+        var rects = [];
+        for (var i = 0; i < cards.length; i++) {
+            var box = cards[i].root.getBoundingClientRect();
+            if (box.width < 60) continue;
+            rects.push({ left: box.left, top: box.top, width: box.width, root: cards[i].root });
+        }
+        if (!rects.length) return null;
+        rects.sort(function (a, b) { return a.left - b.left || a.top - b.top; });
+        var columns = [];
+        for (var j = 0; j < rects.length; j++) {
+            var entry = rects[j];
+            var column = null;
+            for (var k = 0; k < columns.length; k++) {
+                if (Math.abs(columns[k].left - entry.left) < 2) {
+                    column = columns[k];
+                    break;
+                }
+            }
+            if (!column) {
+                column = { left: entry.left, widths: [] };
+                columns.push(column);
+            }
+            column.widths.push(entry.width);
+        }
+        columns.sort(function (a, b) { return a.left - b.left; });
+        var widths = [];
+        for (var m = 0; m < columns.length; m++) {
+            widths.push(median(columns[m].widths));
+        }
+        var width = median(widths);
+        var gaps = [];
+        for (var n = 1; n < columns.length; n++) {
+            gaps.push(columns[n].left - columns[n - 1].left - width);
+        }
+        var gap = gaps.length ? median(gaps) : 0;
+        if (!(gap >= 0)) gap = 0;
+        return { width: width, gap: gap, columns: columns.length, card: rects[0].root };
+    }
+
     // ---------------------------------------------------------------------
     // Star rating and subscribed state
     // ---------------------------------------------------------------------
@@ -533,6 +585,7 @@
         isNewLayout: isNewLayout,
         getControlArea: getControlArea,
         getSortButton: getSortButton,
+        getCardGeometry: getCardGeometry,
         applyFilters: applyFilters,
         onStatusUpdate: onStatusUpdate
     };

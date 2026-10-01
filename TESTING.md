@@ -20,9 +20,21 @@ checks; it is not acceptance.
 - The extension must be loaded unpacked in the browser the MCP drives. Gotcha (2026-10-01):
   Chrome 154.0.8037.92 (branded) ignored `--load-extension` even with
   `--enable-unsafe-extension-debugging` (0 extensions loaded); Edge 154.0.4258.37 loaded it fine.
-  If the MCP's browser will not load the extension, start Edge/Chrome yourself with
-  `--remote-debugging-port` + `--load-extension=<repo>` and point the MCP at it (e.g. via
-  `--browser-url`).
+  If the MCP's browser will not load the extension (Chrome 154 branded sets
+  DisableLoadExtensionCommandLineSwitch and ignores `--load-extension`), drive Edge yourself and
+  point a second MCP instance at it (verified 2026-10-01, Edge 154 headless):
+  - Edge launch (`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`):
+    `--headless=new --disable-gpu --no-first-run --no-default-browser-check --disable-sync
+    --disable-features=Translate,DisableLoadExtensionCommandLineSwitch
+    --enable-unsafe-extension-debugging --window-size=1576,935 --user-data-dir=<temp profile>
+    --remote-debugging-port=9225 --load-extension=<repo>
+    --disable-extensions-except=<repo> about:blank`
+  - Second MCP instance (`--browserUrl` is camelCase; `--workspace` is repeatable):
+    `npx -y chrome-devtools-mcp@latest --browserUrl http://127.0.0.1:9225 --workspace <repo>
+    --workspace <os temp dir>`
+- MCP tool gotchas (2026-10-01): `evaluate_script` wraps its `function` argument as `(<fn>)` and
+  invokes it - pass a function expression; an IIFE string throws "fn is not a function".
+  `take_screenshot` to a filePath outside the OS temp dir requires the `--workspace` flag above.
 - Captured DOM snapshots for offline reference go to the system temp dir, e.g.
   `C:\Users\prodb\AppData\Local\Temp\opencode\ws-rim-browse.html`. Never commit captures.
 
