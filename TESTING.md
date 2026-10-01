@@ -35,6 +35,12 @@ checks; it is not acceptance.
 - MCP tool gotchas (2026-10-01): `evaluate_script` wraps its `function` argument as `(<fn>)` and
   invokes it - pass a function expression; an IIFE string throws "fn is not a function".
   `take_screenshot` to a filePath outside the OS temp dir requires the `--workspace` flag above.
+- Edge recipe pitfalls (round 5): literal quotes inside `--load-extension` /
+  `--disable-extensions-except` values are unreliable through this shell - use a space-free
+  junction path (e.g. `C:\junc\wshs`) pointing at the repo; and the profile `Preferences` file
+  existing is NOT proof the extension loaded - verify in-page before trusting a session.
+  Harness note: `matrix-lib.js` `gaps.*` is always null (labelInfo.rect lacks `right`); take
+  inter-button gaps from the run-line output instead.
 - Captured DOM snapshots for offline reference go to the system temp dir, e.g.
   `C:\Users\prodb\AppData\Local\Temp\opencode\ws-rim-browse.html`. Never commit captures.
 
