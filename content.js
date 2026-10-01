@@ -4,6 +4,15 @@ let currentStarFilter = 0; // 0 means show all
 let widthSync = null;
 let widthSyncCleanup = null;
 
+// Steam's new layout is server-rendered and hydrated by React after the page
+// scripts run. Inserting our controls before hydration makes React report an
+// uncaught hydration mismatch (#418), so on the new layout the injection waits
+// for the page load plus a short DOM-quiet period. Legacy pages are not
+// React-owned and keep the immediate injection.
+const HYDRATION_SETTLE_MS = 1500;
+let lastDomMutationAt = Date.now();
+let createButtonsRetryTimer = null;
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function getControlArea() {
@@ -78,6 +87,22 @@ function getRowColumnGap(sortButton) {
     return 0;
 }
 
+function isHydrationSettled() {
+    return document.readyState === 'complete' &&
+        Date.now() - lastDomMutationAt >= HYDRATION_SETTLE_MS;
+}
+
+// The gate below needs a callback after the DOM goes quiet, which the global
+// MutationObserver cannot guarantee on its own.
+function scheduleCreateButtonsRetry() {
+    if (createButtonsRetryTimer !== null) return;
+    const quietFor = Date.now() - lastDomMutationAt;
+    createButtonsRetryTimer = setTimeout(() => {
+        createButtonsRetryTimer = null;
+        createButtons();
+    }, Math.max(250, HYDRATION_SETTLE_MS - quietFor));
+}
+
 function createButtons() {
     const controlArea = getControlArea();
     if (!controlArea || document.querySelector('.hide-subscribed-button')) return;
@@ -88,7 +113,16 @@ function createButtons() {
     }
 
     const isNewLayout = !!(window.WSHSDom && window.WSHSDom.isNewLayout && window.WSHSDom.isNewLayout());
-    const sortInfo = isNewLayout && window.WSHSDom.getSortButton ? window.WSHSDom.getSortButton() : null;
+
+    // Hydration gate for the new layout (see the note at the top of the file).
+    // The observer keeps calling createButtons() while the page mutates; the
+    // retry timer covers the quiet case.
+    if (isNewLayout && !isHydrationSettled()) {
+        scheduleCreateButtonsRetry();
+        return;
+    }
+
+    let sortInfo = isNewLayout && window.WSHSDom.getSortButton ? window.WSHSDom.getSortButton() : null;
     const sortButton = sortInfo && sortInfo.button ? sortInfo.button : null;
 
     // Star filter button: [star icon][label][chevron]. The chevron toggles the
@@ -201,19 +235,41 @@ function createButtons() {
     injectedControls.appendChild(starFilterContainer);
     injectedControls.appendChild(hideButton);
 
+    // The sort button is re-resolved on every sync because React can replace
+    // the node during hydration, which would otherwise freeze the width sync.
+    function getLiveSortInfo() {
+        if (sortInfo && sortInfo.button && sortInfo.button.isConnected) return sortInfo;
+        if (isNewLayout && window.WSHSDom && window.WSHSDom.getSortButton) {
+            const fresh = window.WSHSDom.getSortButton();
+            if (fresh && fresh.button) {
+                sortInfo = fresh;
+                return fresh;
+            }
+        }
+        return null;
+    }
+
     // Equal width: match the native sort button when it is present; otherwise
-    // make the two injected buttons match each other (wider one wins).
+    // make the two injected buttons match each other (wider one wins). Setting
+    // min-width too keeps the buttons from being flex-shrunk below the sync.
     function syncWidths() {
-        if (sortButton) {
-            if (!sortButton.isConnected) return;
-            const width = sortButton.getBoundingClientRect().width;
+        const liveSort = getLiveSortInfo();
+        if (liveSort) {
+            let width = liveSort.button.getBoundingClientRect().width;
+            if (width < 120 && liveSort.wrapper) {
+                width = liveSort.wrapper.getBoundingClientRect().width;
+            }
             if (width < 120) return;
             starButton.style.width = width + 'px';
             hideButton.style.width = width + 'px';
+            starButton.style.minWidth = width + 'px';
+            hideButton.style.minWidth = width + 'px';
             return;
         }
         starButton.style.width = '';
         hideButton.style.width = '';
+        starButton.style.minWidth = '';
+        hideButton.style.minWidth = '';
         const width = Math.max(
             starButton.getBoundingClientRect().width,
             hideButton.getBoundingClientRect().width
@@ -223,16 +279,32 @@ function createButtons() {
             hideButton.style.width = width + 'px';
         }
     }
-    widthSync = syncWidths;
 
     // Uniform gap G: the sort row's flex column-gap when it has one, otherwise
-    // 10px. Without a row gap, a right margin supplies the wrapper-to-sort gap.
-    const rowGap = sortButton ? getRowColumnGap(sortButton) : 0;
-    const gap = rowGap > 0 ? rowGap : 10;
-    injectedControls.style.gap = gap + 'px';
-    if (sortButton && rowGap <= 0) {
-        injectedControls.style.marginRight = gap + 'px';
+    // 10px. The row on the new layout is a space-between flex container, so our
+    // wrapper becomes a middle item and the slack collects between it and the
+    // sort button; a left auto margin absorbs that free space and makes the
+    // cluster hug the sort button. Without a row gap, a right margin supplies
+    // the wrapper-to-sort gap. Re-run this on resize.
+    function applySpacing() {
+        const liveSort = getLiveSortInfo();
+        const rowGap = liveSort ? getRowColumnGap(liveSort.button) : 0;
+        const gap = rowGap > 0 ? rowGap : 10;
+        injectedControls.style.gap = gap + 'px';
+        if (liveSort) {
+            injectedControls.style.marginLeft = 'auto';
+            injectedControls.style.marginRight = rowGap > 0 ? '' : gap + 'px';
+        } else {
+            injectedControls.style.marginLeft = '';
+            injectedControls.style.marginRight = '';
+        }
     }
+
+    function resync() {
+        applySpacing();
+        syncWidths();
+    }
+    widthSync = resync;
 
     // New layout: immediately left of the native sort button's wrapper. Legacy
     // pages keep today's injection point.
@@ -242,18 +314,22 @@ function createButtons() {
         controlArea.appendChild(injectedControls);
     }
 
+    // Keep the width sync from being defeated by flex-shrink inside the wrapper.
+    starFilterContainer.style.flex = 'none';
+    hideButton.style.flex = 'none';
+
     let resizeObserver = null;
     if (sortButton && typeof ResizeObserver === 'function') {
-        resizeObserver = new ResizeObserver(() => syncWidths());
+        resizeObserver = new ResizeObserver(() => resync());
         resizeObserver.observe(sortButton);
     }
-    window.addEventListener('resize', syncWidths);
+    window.addEventListener('resize', resync);
     widthSyncCleanup = () => {
-        window.removeEventListener('resize', syncWidths);
+        window.removeEventListener('resize', resync);
         if (resizeObserver) resizeObserver.disconnect();
     };
 
-    syncWidths();
+    resync();
 }
 
 function getStarRating(item) {
@@ -371,6 +447,7 @@ function init() {
 
 // Set up mutation observer to handle dynamically loaded content
 const observer = new MutationObserver((mutations) => {
+    lastDomMutationAt = Date.now();
     for (const mutation of mutations) {
         if (mutation.addedNodes.length) {
             applyFiltersIfNeeded();
@@ -389,7 +466,8 @@ const observer = new MutationObserver((mutations) => {
 
 observer.observe(document, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true
 });
 
 init();

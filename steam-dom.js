@@ -6,11 +6,13 @@
 // stable hooks: the CommunityTemplate root, sharedfiles/filedetails links, the
 // aspectratio_* preview frames and the SVGIcon_* icon names. Subscribed state is not
 // part of the SSR HTML: the page fetches it with
-// GET /sharedfiles/actions?q=GetUserListStatus&qp=[...]. A small hook injected into
-// the page world observes those requests and responses, learns the qp argument
-// template and posts the statuses back here. Ids the page did not ask about are
-// replayed in batches of 100 with the learned template (an inferred fallback
-// template is used as a last resort when no page template has been observed).
+// GET /sharedfiles/actions?q=GetUserListStatus&qp=[...]. Observing that request from
+// the page world would require injecting an inline <script>, but MV3 subjects scripts
+// created by a content script to the extension's CSP, so the page nonce cannot
+// authorize them and the injection is always blocked (console CSP error). The hook is
+// therefore not attempted; ids the page did not ask about are replayed in batches of
+// 100 with an inferred fallback template, and the replay is skipped when no Steam
+// user is signed in.
 
 (function () {
     'use strict';
@@ -29,164 +31,9 @@
     var replayCooldownUntil = 0;
     var starFallback = null;
     var cachedAppId = null;
-    var hookInjected = false;
 
     // ---------------------------------------------------------------------
-    // Page-world fetch hook (stringified and injected as a nonce script)
-    // ---------------------------------------------------------------------
-
-    function mainWorldHook() {
-        if (window.__WSHS_MAIN_HOOK__) {
-            return;
-        }
-        window.__WSHS_MAIN_HOOK__ = true;
-
-        var statuses = {};
-        var templates = {};
-        var best = null;
-        var nativeFetch = window.fetch;
-
-        function post(message) {
-            message.__wshs = true;
-            try {
-                window.postMessage(message, '*');
-            } catch (error) {
-                // ignore
-            }
-        }
-
-        function learnTemplate(url) {
-            var qp = url.searchParams.get('qp');
-            if (!qp) return;
-            var args;
-            try {
-                args = JSON.parse(qp);
-            } catch (error) {
-                return;
-            }
-            if (!Array.isArray(args)) return;
-            var idsIndex = -1;
-            for (var i = args.length - 1; i >= 0; i--) {
-                if (Array.isArray(args[i])) {
-                    idsIndex = i;
-                    break;
-                }
-            }
-            if (idsIndex === -1) return;
-            var templateArgs = args.map(function (arg, index) {
-                return index === idsIndex ? null : arg;
-            });
-            var key = JSON.stringify(templateArgs);
-            var entry = templates[key];
-            if (!entry) {
-                entry = {
-                    count: 0,
-                    endpoint: url.pathname,
-                    idsIndex: idsIndex,
-                    args: templateArgs
-                };
-                templates[key] = entry;
-            }
-            entry.count += 1;
-            if (!best || entry.count > best.count) {
-                best = entry;
-                post({
-                    type: 'template',
-                    template: {
-                        endpoint: entry.endpoint,
-                        idsIndex: entry.idsIndex,
-                        args: entry.args
-                    }
-                });
-            }
-        }
-
-        function record(data) {
-            if (!Array.isArray(data)) return;
-            var rows = [];
-            for (var i = 0; i < data.length; i++) {
-                var row = data[i];
-                if (row && row.publishedfileid != null && typeof row.inlist === 'boolean') {
-                    var id = String(row.publishedfileid);
-                    statuses[id] = row.inlist;
-                    rows.push({ publishedfileid: id, inlist: row.inlist });
-                }
-            }
-            if (rows.length) {
-                post({ type: 'status', rows: rows });
-            }
-        }
-
-        window.fetch = function () {
-            var url = null;
-            try {
-                var raw = typeof arguments[0] === 'string' ? arguments[0] : (arguments[0] && arguments[0].url);
-                url = raw ? new URL(raw, location.href) : null;
-            } catch (error) {
-                url = null;
-            }
-            if (!url || url.searchParams.get('q') !== 'GetUserListStatus') {
-                return nativeFetch.apply(this, arguments);
-            }
-            learnTemplate(url);
-            var promise = nativeFetch.apply(this, arguments);
-            try {
-                promise.then(function (response) {
-                    return response.clone().json();
-                }).then(function (payload) {
-                    record(payload && payload.data);
-                }).catch(function () {
-                    // response was not JSON or the body was already consumed
-                });
-            } catch (error) {
-                // ignore
-            }
-            return promise;
-        };
-    }
-
-    var MAIN_HOOK_SOURCE = '(' + mainWorldHook.toString() + ')();';
-
-    // Content scripts live in an isolated world, so their window.fetch wrapper would
-    // never see the page's own requests. Reuse the page's CSP nonce to run the hook
-    // in the page world. Pages without a nonce simply fall back to the replay below.
-    function tryInjectMainHook() {
-        if (hookInjected) return true;
-        if (!document.getElementById('CommunityTemplate')) return false;
-        var nonce = '';
-        var scripts = document.scripts;
-        for (var i = 0; i < scripts.length; i++) {
-            if (scripts[i].nonce) {
-                nonce = scripts[i].nonce;
-                break;
-            }
-        }
-        if (!nonce) return false;
-        try {
-            var script = document.createElement('script');
-            script.setAttribute('nonce', nonce);
-            script.textContent = MAIN_HOOK_SOURCE;
-            (document.head || document.documentElement).appendChild(script);
-            script.remove();
-            hookInjected = true;
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    tryInjectMainHook();
-    if (!hookInjected) {
-        var injectionObserver = new MutationObserver(function () {
-            if (tryInjectMainHook()) {
-                injectionObserver.disconnect();
-            }
-        });
-        injectionObserver.observe(document, { childList: true, subtree: true });
-    }
-
-    // ---------------------------------------------------------------------
-    // Status store (fed by the page-world hook and by the replay below)
+    // Status store (fed by the replay below)
     // ---------------------------------------------------------------------
 
     window.addEventListener('message', function (event) {
@@ -257,6 +104,31 @@
         }
     }
 
+    // GetUserListStatus answers 500 without a session, which would show up as a
+    // failed request on every logged-out page load. The SSR shell embeds
+    // window.UserConfig in inline script text (readable from the isolated world),
+    // and the header shows a login link when signed out. Unknown state is treated
+    // as signed in and left uncached so a slow-rendering shell can be re-checked.
+    var loggedInState = null;
+
+    function isLoggedIn() {
+        if (loggedInState !== null) return loggedInState;
+        var scripts = document.scripts;
+        for (var i = 0; i < scripts.length; i++) {
+            var text = scripts[i].textContent || '';
+            if (text.indexOf('window.UserConfig') === -1) continue;
+            var config = parseAssignedJson(text, 'window.UserConfig');
+            if (config && typeof config.logged_in === 'boolean') {
+                loggedInState = config.logged_in;
+                return loggedInState;
+            }
+        }
+        if (document.querySelector('a[href="/login/"]')) {
+            loggedInState = false;
+        }
+        return loggedInState === null ? true : loggedInState;
+    }
+
     function sendReplayBatch(batch) {
         var args;
         var idsIndex;
@@ -286,6 +158,7 @@
 
         fetch(url.href, { headers: { 'x-valve-refetch-payload': 'queryAction' } })
             .then(function (response) {
+                if (!response.ok) throw new Error('GetUserListStatus HTTP ' + response.status);
                 return response.json();
             })
             .then(function (payload) {
@@ -301,6 +174,7 @@
 
     function requestStatuses(ids) {
         if (Date.now() < replayCooldownUntil) return;
+        if (!isLoggedIn()) return;
         var batch = [];
         for (var i = 0; i < ids.length; i++) {
             var id = ids[i];

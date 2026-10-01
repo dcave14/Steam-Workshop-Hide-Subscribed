@@ -26,6 +26,9 @@
 }
 
 .wshs-button-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
     white-space: nowrap;
 }
 
