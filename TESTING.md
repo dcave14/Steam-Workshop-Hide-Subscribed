@@ -113,6 +113,23 @@ hidden (leak count must be zero) with no visible flicker.
   dark button-background runs) and report button edges and gaps in pixels; user screenshots are
   1:1. Sanity anchors at 13px: label ink ~67.1px for "Star Rating" and ~50.2px for "5+ Stars".
 
+### Collection-page checklist (classic layout, 2026-10-01)
+
+Page: `https://steamcommunity.com/sharedfiles/filedetails/?id=3521297585` - legacy layout, no
+`#CommunityTemplate`, no `window.SSR`, all 865 rows in the DOM, anchor is the native
+`.subscribeCollection` 3-button row. The controls get a collection-scoped `.general_btn` skin
+there, and the row wraps our wrapper onto a second line (the row is too narrow for two more
+buttons); the three native buttons must keep their normal size and look.
+
+- Controls render inside/next to the `.subscribeCollection` row, 30px tall, dark chip,
+  icon + label, unchanged on hover except the native blue `#97C0E3` hover.
+- "Hide Subscribed" on hides only rows whose `.general_btn.subscribe` has `toggled`
+  (add/remove `toggled` live on rows to simulate); off restores all rows, no holes.
+- Star filter narrows rows by `img.fileRating` (`N-star.png`); clearing it restores all.
+- State survives a reload through the existing `hideSubscribed` / `starFilter` storage keys.
+- A row with no rating or unknown subscribed state is never hidden by hide-subscribed.
+- Zero console errors.
+
 ## Screenshots
 
 - Tester screenshots: `.opencode/tasks/temp-screenshots/<task>-<n>.png`. The orchestrator opens

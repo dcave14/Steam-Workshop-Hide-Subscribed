@@ -110,3 +110,77 @@
     gap: 10px;
     position: relative;
 }
+
+/* Classic collection pages (sharedfiles/filedetails/?id=<collectionid>): our
+   controls join the native 3-button row (.subscribeCollection) and copy the
+   native .general_btn.subscribe anatomy - 30px tall, rgba(0,0,0,0.4) chip,
+   3px radius, 14px #939393 label, 16px icon pinned 8px from the left edge -
+   with the native subscribe-button hover (#97C0E3 background, #3C3D3E text).
+   Scoped to the injected wrapper so the browse-page skin above is unchanged. */
+.subscribeCollection {
+    /* The native row is too narrow for two more buttons; wrap our wrapper to a
+       second line instead of letting flexbox shrink the native buttons. */
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+
+.wshs-injected-controls.wshs-collection-controls {
+    flex: none;
+    gap: 0;
+}
+
+.wshs-collection-controls .hide-subscribed-button {
+    position: relative;
+    display: inline-flex;
+    height: 30px;
+    padding: 0 12px 0 28px;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-radius: 3px;
+    color: #939393;
+    font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 30px;
+    margin: 0 5px 0 0;
+    white-space: nowrap;
+}
+
+.wshs-collection-controls .hide-subscribed-button:hover,
+.wshs-collection-controls .hide-subscribed-button:active {
+    background-color: #97C0E3;
+    color: #3C3D3E;
+}
+
+.wshs-collection-controls .wshs-left-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+}
+
+.wshs-collection-controls .star-filter-button {
+    padding-right: 26px;
+}
+
+.wshs-collection-controls .wshs-chevron {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 10px;
+    height: auto;
+    transform: translateY(-50%);
+}
+
+.wshs-collection-controls .wshs-toggle-slot {
+    width: 14px;
+    height: 14px;
+}
+
+.wshs-collection-controls .wshs-check-icon {
+    width: 14px;
+    height: 14px;
+}

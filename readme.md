@@ -15,6 +15,8 @@ A Chrome extension that adds filtering capabilities to Steam Workshop pages, all
 - Seamlessly integrates with Steam's existing UI
 - Supports both the classic Workshop layout and Steam's new React SSR Workshop layout
   (CommunityTemplate pages such as `steamcommunity.com/app/*/workshop/*`)
+- Supports classic collection pages (`steamcommunity.com/sharedfiles/filedetails/?id=<collectionid>`):
+  the controls join the collection's own 3-button row and match its native `.general_btn` styling
 - Lightweight and performant
 
 ## Installation
@@ -32,6 +34,7 @@ Coming soon!
 ## Usage
 
 1. Navigate to any Steam Workshop page (classic pages, `steamcommunity.com/workshop/*`,
+   classic collection pages such as `steamcommunity.com/sharedfiles/filedetails/?id=<collectionid>`,
    or the new layout pages such as `steamcommunity.com/app/*/workshop/*`)
 2. Find the filtering controls near the sorting options:
    - "Hide Subscribed" button to toggle visibility of subscribed items
@@ -93,6 +96,8 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 ## Changelog
 
 ### Unreleased
+- Added the filters to classic collection pages (`sharedfiles/filedetails/?id=<collectionid>`),
+  where the controls join the collection's native button row and use its `.general_btn` styling
 - Rebuilt the injected controls in Steam's native style and placed them immediately left of the native sort button, with all three buttons sized to the mod card width and flush with the card columns below
 - The three controls now use one uniform 13px font and a frozen worst-case label width, so their geometry stays identical when the sort order or filter labels change
 

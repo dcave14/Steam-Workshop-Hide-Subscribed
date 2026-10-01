@@ -66,7 +66,9 @@ let createButtonsRetryTimer = null;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function getControlArea() {
-    const legacyArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls');
+    // .subscribeCollection is the classic collection page's native 3-button
+    // row (sharedfiles/filedetails/?id=<collectionid>), which is legacy DOM.
+    const legacyArea = document.querySelector('.workshop_browse_menu_area, .workshop_browse_options, .collectionControls>.workshopItemControls, .subscribeCollection');
     if (legacyArea) return legacyArea;
     if (window.WSHSDom && window.WSHSDom.isNewLayout()) {
         return window.WSHSDom.getControlArea();
@@ -163,6 +165,11 @@ function createButtons() {
     }
 
     const isNewLayout = !!(window.WSHSDom && window.WSHSDom.isNewLayout && window.WSHSDom.isNewLayout());
+
+    // Classic collection pages: our controls join the native .subscribeCollection
+    // button row and keep its .general_btn skin, so the browse-page shared
+    // geometry (frozen width, sort-button coupling) does not run there.
+    const isCollectionArea = controlArea.classList.contains('subscribeCollection');
 
     // Hydration gate for the new layout (see the note at the top of the file).
     // The observer keeps calling createButtons() while the page mutates; the
@@ -280,6 +287,9 @@ function createButtons() {
     injectedControls.className = 'wshs-injected-controls';
     if (isNewLayout) {
         injectedControls.className += ' wshs-new-layout-controls';
+    }
+    if (isCollectionArea) {
+        injectedControls.className += ' wshs-collection-controls';
     }
     injectedControls.appendChild(starFilterContainer);
     injectedControls.appendChild(hideButton);
@@ -489,6 +499,9 @@ function createButtons() {
     // them, and the native sort button keeps the grid's right edge, so the
     // columns tile by construction. One shared height is forced on all three.
     function resync() {
+        // Collection-page controls keep their natural width in the native
+        // button row; there is no sort button to tile with there.
+        if (isCollectionArea) return;
         const liveSort = getLiveSortInfo();
         const liveSortButton = liveSort ? liveSort.button : null;
         if (liveSortButton) applyUniformFont(liveSortButton);
