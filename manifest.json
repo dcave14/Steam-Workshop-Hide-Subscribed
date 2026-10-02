@@ -14,7 +14,7 @@
                 "*://*.steamcommunity.com/sharedfiles/filedetails/*",
                 "*://*.steamcommunity.com/app/*/workshop/*"
             ],
-            "js": ["steam-dom.js", "content.js"],
+            "js": ["steam-dom.js", "content.js", "collection-row-align.js"],
             "css": ["styles.css"],
             "run_at": "document_start"
         }

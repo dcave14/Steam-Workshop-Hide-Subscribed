@@ -122,16 +122,54 @@
    box (fills the 645px column, border-box right edge on the column edge; no
    content-sized width override, which is what pushed the strip past that
    edge). Steam's bar computes to flex-wrap: nowrap, so the fallback is
-   declared here: when the compacted controls do not fit the column, our
-   wrapper moves to a second line instead of overflowing the bar. */
+   declared here: the wrapper always takes its own second line (round-4
+   two-row layout) instead of overflowing the bar, and the line gap is 5px
+   like the native inter-button gap. */
 .subscribeCollection:has(> .wshs-collection-controls) {
     flex-wrap: wrap;
-    row-gap: 8px;
+    row-gap: 5px;
 }
 
 .wshs-injected-controls.wshs-collection-controls {
     flex: none;
     gap: 0;
+}
+
+/* Measured two-row layout: collection-row-align.js sets --wshs-row-w (native
+   button 3 right edge minus native button 1 left edge) and --wshs-seam-w
+   (native button 2 midpoint minus native button 1 left edge, less half the
+   5px chip gap) once it can measure the 3 native buttons on one line. The
+   wrapper then becomes its own grid line, exactly as wide as the native row,
+   split so the 5px chip gap is centred on native button 2's midpoint.
+   Without this class the wrapper keeps the natural shrink-to-fit fallback. */
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned {
+    display: grid;
+    width: var(--wshs-row-w);
+    grid-template-columns: var(--wshs-seam-w) 1fr;
+    column-gap: 5px;
+    row-gap: 5px;
+    align-items: stretch;
+    justify-items: stretch;
+}
+
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned > div,
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned > button {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+/* Chips stretch across their grid column; the fallback 4px separation is
+   replaced by the 5px grid gap so the seam meets native button 2's centre. */
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .hide-subscribed-button {
+    width: 100%;
+    margin: 0;
+}
+
+/* Native left rhythm: icon pinned 8px from the left, label starting at 28px
+   (the icon plus 4px), exactly like the native .general_btn children. The
+   star chip keeps its chevron pinned to the chip's right edge. */
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-button-label {
+    text-align: left;
 }
 
 .wshs-collection-controls .hide-subscribed-button {

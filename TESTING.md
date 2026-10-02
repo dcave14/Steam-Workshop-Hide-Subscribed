@@ -129,10 +129,13 @@ buttons); the three native buttons must keep their normal size and look.
 - State survives a reload through the existing `hideSubscribed` / `starFilter` storage keys.
 - A row with no rating or unknown subscribed state is never hidden by hide-subscribed.
 - Zero console errors.
-- Bar geometry: the `.subscribeCollection` bar must stay within its container at any viewport (bar
-  right edge = container content right edge, no overhang). The chips sit on the bar's first line
-  when they fit and wrap to a second line inside the bar when they do not; Steam's collection column
-  is a fixed ~645px at >=920px viewport, so the five controls wrap there today.
+- Bar geometry (two-row aligned layout): the `.subscribeCollection` bar must stay within its container
+  at any viewport (bar right edge = container content right edge, no overhang). Row 1 = the 3 native
+  buttons; row 2 = the 2 injected chips, exactly as wide as row 1 and aligned to it by
+  `collection-row-align.js`: chip 1's left edge = native button 1's left edge, the 5px gap between the
+  chips is centred on native button 2's midpoint, chip 2's right edge = native button 3's right edge,
+  and the gap between the rows is 5px. When the script cannot measure, or the 3 native buttons are not
+  on one line (top deltas > 1px), the wrapper falls back to its natural shrink-to-fit width.
 
 ## Screenshots
 
