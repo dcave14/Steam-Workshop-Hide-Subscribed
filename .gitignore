@@ -9,8 +9,9 @@ perf/off-target-*.html
 # Rendered promo video, store images and README GIFs (regenerate with the promo/ scripts)
 promo/out/
 
-# Scratch screenshots from task runs
-.opencode/tasks/temp-screenshots/
+# Local agent notes and task files (not part of the published project)
+.opencode/
+NEXT.md
 
 # Store upload packages are published as GitHub Release assets, not committed
 *.zip
