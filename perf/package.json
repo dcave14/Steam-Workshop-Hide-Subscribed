@@ -1,0 +1,11 @@
+{
+  "name": "wshs-perf",
+  "private": true,
+  "description": "Performance test for the extension on live Steam pages",
+  "scripts": {
+    "perf": "node perf-test.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.12.0"
+  }
+}

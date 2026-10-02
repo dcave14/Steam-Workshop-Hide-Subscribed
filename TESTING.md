@@ -2,6 +2,32 @@
 
 How this project is tested.
 
+## Performance testing
+
+`perf/perf-test.js` loads live Steam pages in headless Chrome (Puppeteer, system Chrome) and
+compares them with no extension, with the extension, and (browse page) with the old
+load-plus-quiet-period injection gate. It reports the median of N runs for: time until the
+buttons appear, DOMContentLoaded/load, script and main-thread task time, layout and style
+recalc counts, JS heap, long tasks, idle cost over 5s, React hydration errors, and the cost of
+the star/hide clicks.
+
+```
+cd perf
+npm install
+node perf-test.js --runs 5            # both scenarios
+node perf-test.js --runs 5 --only collection
+```
+
+Scenarios: the RimWorld browse page (new layout) and a ~860-item RimWorld collection (classic
+layout). Raw numbers go to `perf/results.json`. Runs that receive a different page (Steam's
+"too many requests" page after roughly 100 loads, or a changed collection) are dropped from the
+medians and their HTML is saved as `perf/off-target-*.html`. Leave a few minutes between full
+runs so Steam's rate limit resets.
+
+Reference medians (2026-10-02, 5 runs): buttons visible ~1.4s on the browse page (old gate
+~3.2s); on the large collection the extension adds no DOMContentLoaded delay, ~20 layouts and
+~20 style recalcs; star/hide clicks cost under ~25ms.
+
 ## Runtime testing (required)
 
 User requirement (2026-10-01): "make sure to use the proper chrome dev tools mcp and what not to
