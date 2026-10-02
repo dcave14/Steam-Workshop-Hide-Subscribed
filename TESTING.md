@@ -129,6 +129,10 @@ buttons); the three native buttons must keep their normal size and look.
 - State survives a reload through the existing `hideSubscribed` / `starFilter` storage keys.
 - A row with no rating or unknown subscribed state is never hidden by hide-subscribed.
 - Zero console errors.
+- Bar geometry: the `.subscribeCollection` bar must stay within its container at any viewport (bar
+  right edge = container content right edge, no overhang). The chips sit on the bar's first line
+  when they fit and wrap to a second line inside the bar when they do not; Steam's collection column
+  is a fixed ~645px at >=920px viewport, so the five controls wrap there today.
 
 ## Screenshots
 

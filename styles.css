@@ -118,23 +118,15 @@
    with the native subscribe-button hover (#97C0E3 background, #3C3D3E text).
    Scoped to the injected wrapper so the browse-page skin above is unchanged. */
 /* Only the collection bar that actually holds our controls: untouched
-   collection pages keep Steam's default layout. The native row (645px column)
-   cannot fit five controls; let the bar take its natural width on one line
-   instead of wrapping, leaving the native buttons untouched. Accepted side
-   effect: the bar strip widens 645px -> ~807px at a 1300px viewport, extending
-   into the empty page area beside the column. */
+   collection pages keep Steam's default layout, and the bar keeps its native
+   box (fills the 645px column, border-box right edge on the column edge; no
+   content-sized width override, which is what pushed the strip past that
+   edge). Steam's bar computes to flex-wrap: nowrap, so the fallback is
+   declared here: when the compacted controls do not fit the column, our
+   wrapper moves to a second line instead of overflowing the bar. */
 .subscribeCollection:has(> .wshs-collection-controls) {
-    flex-wrap: nowrap;
-    width: max-content;
-}
-
-/* Narrow viewports: wrap to a second line instead of overflowing the page. */
-@media (max-width: 900px) {
-    .subscribeCollection:has(> .wshs-collection-controls) {
-        flex-wrap: wrap;
-        width: auto;
-        row-gap: 8px;
-    }
+    flex-wrap: wrap;
+    row-gap: 8px;
 }
 
 .wshs-injected-controls.wshs-collection-controls {
@@ -146,8 +138,8 @@
     position: relative;
     display: inline-flex;
     height: 30px;
-    padding: 0 12px 0 28px;
-    gap: 4px;
+    padding: 0 8px 0 28px;
+    gap: 3px;
     background: rgba(0, 0, 0, 0.4);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -156,7 +148,7 @@
     font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
     font-size: 14px;
     line-height: 30px;
-    margin: 0 5px 0 0;
+    margin: 0;
     white-space: nowrap;
 }
 
@@ -176,12 +168,13 @@
 }
 
 .wshs-collection-controls .star-filter-button {
-    padding-right: 26px;
+    padding-right: 20px;
+    margin-right: 4px;
 }
 
 .wshs-collection-controls .wshs-chevron {
     position: absolute;
-    right: 8px;
+    right: 6px;
     top: 50%;
     width: 10px;
     height: auto;
