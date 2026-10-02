@@ -7,12 +7,9 @@
 //   --wshs-row-w  = row-end landmark right - btn1.left
 //   --wshs-seam-w = stretched btn2 midpoint - btn1.left - CHIP_GAP / 2
 //                 (the 5px chip gap is centred on btn2's midpoint)
-// The row-end landmark is the right edge of the rightmost VISIBLE green
-// per-row subscribe button (div.collectionItem a.general_btn.subscribe) - the
-// vertical line above the per-row buttons. Filtered rows carry .hidden-item
-// (display:none) and are skipped; every visible row shares the same right
-// edge. With no visible green button the bar's content right edge is used.
-// The target is clamped to the bar's border-box right edge and the
+// The row end mirrors the row start: the gap between the bar's left edge and
+// native button 1 is repeated before the bar's right edge, so the margins are
+// equal on both sides. The target is clamped to the bar's border-box right edge and the
 // container's content right edge: the row may consume the bar's right padding
 // to reach the line, but the page never overflows.
 //
@@ -50,6 +47,7 @@
     function clearNativeWidths() {
         for (var i = 0; i < stretchedNatives.length; i++) {
             stretchedNatives[i].style.removeProperty('width');
+            stretchedNatives[i].style.removeProperty('margin-right');
         }
         stretchedNatives = [];
     }
@@ -101,20 +99,14 @@
             return;
         }
 
-        // Row-end landmark: right edge of the rightmost visible green per-row
-        // subscribe button (the vertical line above the row buttons). Filtered
-        // rows carry .hidden-item (display:none) and measure 0x0, so they are
-        // skipped; all visible rows share the same right edge.
-        var targetRight = null;
-        var greens = document.querySelectorAll('.collectionItem a.general_btn.subscribe');
-        for (var i = 0; i < greens.length; i++) {
-            var greenRect = greens[i].getBoundingClientRect();
-            if (greenRect.width <= 0 || greenRect.height <= 0) continue;
-            if (targetRight === null || greenRect.right > targetRight) {
-                targetRight = greenRect.right;
-            }
-        }
-        if (targetRight === null) targetRight = contentRight;
+        // Row end mirrors the row start: the space between the bar's left
+        // edge and native button 1 is repeated on the right, so both rows sit
+        // centred in the bar with equal margins.
+        // Steam gives every native button margin-right: 5px, including the
+        // last one; that trailing margin is dropped below so the stretched
+        // row can reach this edge without wrapping.
+        var targetRight = barRect.right - (first.left - barRect.left);
+        if (!(targetRight > first.left) || targetRight > contentRight) targetRight = contentRight;
 
         // Clamp: never past the bar's border-box right edge or the
         // container's content right edge. The row may use the bar's right
@@ -161,6 +153,7 @@
         natives[0].style.width = w0 + 'px';
         natives[1].style.width = w1 + 'px';
         natives[2].style.width = w2 + 'px';
+        natives[2].style.marginRight = '0';
         stretchedNatives = [natives[0], natives[1], natives[2]];
 
         wrapper.style.setProperty('--wshs-row-w', rowW + 'px');
@@ -208,8 +201,20 @@
         }
     }
 
+    // One sync per animation frame: measure() forces layout and rewrites the
+    // native widths, so running it on every parser chunk of a large
+    // collection page thrashed layout while the page was still loading.
+    var syncFrame = null;
+    function scheduleSync() {
+        if (syncFrame !== null) return;
+        syncFrame = requestAnimationFrame(function () {
+            syncFrame = null;
+            sync();
+        });
+    }
+
     if (typeof MutationObserver === 'function') {
-        new MutationObserver(sync).observe(document.documentElement, {
+        new MutationObserver(scheduleSync).observe(document.documentElement, {
             childList: true,
             subtree: true
         });

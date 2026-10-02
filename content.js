@@ -14,6 +14,12 @@ const BUTTON_FONT_SIZE = '13px';
 // Shared chrome: horizontal padding 20 + left icon 25 + right icon/slot 17.
 const BUTTON_CHROME_WIDTH = 62;
 const GAP_FLOOR = 8;
+
+// When a card column is narrower than the worst-case label needs at 13px,
+// the font scales down so the buttons stay exactly card-width (flush with the
+// columns) instead of overhanging them. Below this size the buttons overrun
+// the card width instead.
+const MIN_FIT_FONT_PX = 10;
 const GAP_CEIL = 20;
 
 // Frozen fallback ink for the worst known label ("Most Popular (Three Months)"
@@ -132,6 +138,19 @@ function createCheckIcon() {
     return svg;
 }
 
+// Label updates edit the existing text node instead of assigning textContent.
+// textContent swaps in a new child node, and on large Steam pages (collection
+// pages with hundreds of items) every node insertion costs ~40ms of style and
+// layout, with or without this extension. A nodeValue edit costs ~0.5ms.
+function setText(element, text) {
+    const node = element.firstChild;
+    if (node && node.nodeType === 3 && !node.nextSibling) {
+        if (node.nodeValue !== text) node.nodeValue = text;
+    } else {
+        element.textContent = text;
+    }
+}
+
 function getRowColumnGap(sortButton) {
     let node = sortButton.parentElement;
     while (node && node !== document.body && node !== document.documentElement) {
@@ -145,7 +164,12 @@ function getRowColumnGap(sortButton) {
     return 0;
 }
 
+// hydration-signal.js (MAIN world) sets data-wshs-hydrated on <html> as soon
+// as React has hydrated the sort row, which is usually well before the load
+// event. The load-plus-quiet-period check stays as the fallback for pages
+// where that signal never arrives.
 function isHydrationSettled() {
+    if (document.documentElement.hasAttribute('data-wshs-hydrated')) return true;
     return document.readyState === 'complete' &&
         Date.now() - lastDomMutationAt >= HYDRATION_SETTLE_MS;
 }
@@ -218,27 +242,43 @@ function createButtons() {
     hideButton.appendChild(createHideIcon());
     hideButton.appendChild(hideLabel);
     hideButton.appendChild(toggleSlot);
-    hideButton.addEventListener('click', toggleSubscribedItems);
+    // Our clicks stop at our controls: Steam's document-level click handler
+    // (fnCancelHover in shared_global.js) reads computed styles across the
+    // whole item list and cost ~45ms per click on large collection pages.
+    hideButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownContent.classList.remove('show');
+        toggleSubscribedItems();
+    });
 
     const dropdownContent = document.createElement('div');
     dropdownContent.className = 'star-dropdown-content';
     dropdownContent.innerHTML = `
-        <div class="star-option" data-stars="0">Show All</div>
-        <div class="star-option" data-stars="5">5 Stars Only</div>
-        <div class="star-option" data-stars="4">4+ Stars</div>
-        <div class="star-option" data-stars="3">3+ Stars</div>
-        <div class="star-option" data-stars="2">2+ Stars</div>
-        <div class="star-option" data-stars="1">1+ Stars</div>
+        <div class="wshs-star-options" role="radiogroup">
+            <div class="star-option" role="radio" data-stars="0">Show All</div>
+            <div class="star-option" role="radio" data-stars="5">5 Stars Only</div>
+            <div class="star-option" role="radio" data-stars="4">4+ Stars</div>
+            <div class="star-option" role="radio" data-stars="3">3+ Stars</div>
+            <div class="star-option" role="radio" data-stars="2">2+ Stars</div>
+            <div class="star-option" role="radio" data-stars="1">1+ Stars</div>
+        </div>
     `;
 
     function renderStarLabel() {
-        starLabel.textContent = currentStarFilter === 0 ? 'Star Rating' : currentStarFilter + '+ Stars';
+        setText(starLabel, currentStarFilter === 0 ? 'Star Rating' : currentStarFilter + '+ Stars');
+        for (const option of dropdownContent.querySelectorAll('.star-option')) {
+            const checked = Number(option.dataset.stars) === currentStarFilter;
+            if (option.getAttribute('aria-checked') !== String(checked)) {
+                option.setAttribute('aria-checked', String(checked));
+            }
+        }
     }
+    renderStarLabel();
 
     function renderHideState() {
         hideButton.classList.toggle('active', isHidingSubscribed);
         hideButton.setAttribute('aria-pressed', isHidingSubscribed ? 'true' : 'false');
-        hideLabel.textContent = isHidingSubscribed ? 'Showing New Items' : 'Hide Subscribed';
+        setText(hideLabel, isHidingSubscribed ? 'Showing New Items' : 'Hide Subscribed');
     }
 
     // Add event listeners for star filter
@@ -249,6 +289,7 @@ function createButtons() {
 
     // Handle star filter selection
     dropdownContent.addEventListener('click', (e) => {
+        e.stopPropagation();
         const option = e.target.closest('.star-option');
         if (option) {
             currentStarFilter = parseInt(option.dataset.stars);
@@ -354,7 +395,7 @@ function createButtons() {
                 probe.style.fontStyle = style.fontStyle;
                 probe.style.letterSpacing = style.letterSpacing;
                 probe.style.fontSize = BUTTON_FONT_SIZE;
-                probe.textContent = label;
+                setText(probe, label);
                 const ink = probe.getBoundingClientRect().width;
                 if (ink > worst) {
                     worst = ink;
@@ -386,13 +427,14 @@ function createButtons() {
 
     // F is forced on the native sort label itself too (inline, because the page
     // stylesheet sets 15px and React can replace the node).
-    function applyUniformFont(button) {
+    function applyUniformFont(button, size) {
         if (!button) return;
-        button.style.fontSize = BUTTON_FONT_SIZE;
+        const value = size || BUTTON_FONT_SIZE;
+        button.style.fontSize = value;
         const textSpans = button.querySelectorAll('span');
         for (const span of textSpans) {
             if (!span.children.length && span.textContent.trim()) {
-                span.style.fontSize = BUTTON_FONT_SIZE;
+                span.style.fontSize = value;
             }
         }
     }
@@ -410,6 +452,9 @@ function createButtons() {
         button.style.justifyContent = 'space-between';
         button.style.paddingLeft = '10px';
         button.style.paddingRight = '10px';
+        // Same drop shadow as the injected buttons and the dropdowns
+        // (styles.css).
+        button.style.boxShadow = '1px 1px 10px 0 rgba(0, 0, 0, 0.6)';
     }
 
     function clearButtonGeometry(button) {
@@ -423,6 +468,7 @@ function createButtons() {
         button.style.justifyContent = '';
         button.style.paddingLeft = '';
         button.style.paddingRight = '';
+        button.style.boxShadow = '';
     }
 
     function setButtonWidth(button, width, gap) {
@@ -525,6 +571,8 @@ function createButtons() {
         // so it cannot move with labels. The native sort button gets its
         // natural geometry back.
         if (!liveSortButton || !geometry || geometry.columns < 3 || !(geometry.width >= 120)) {
+            starButton.style.fontSize = '';
+            hideButton.style.fontSize = '';
             clearButtonGeometry(starButton);
             clearButtonGeometry(hideButton);
             clearButtonGeometry(liveSortButton);
@@ -551,10 +599,24 @@ function createButtons() {
         }
 
         // Geometry is a pure function of the card grid (W) and the frozen
-        // worst-case ink Iworst; live label text never feeds width or gap:
-        // width = max(W, Iworst + 62 + 16), gap = clamp(8, (W - Iworst - 62)/2, 20).
-        // At the 8px floor a shared overrun keeps every known label single-line.
-        const iworst = getWorstCaseInk(liveSortButton);
+        // worst-case ink Iworst (measured at 13px); live label text never feeds
+        // width or gap. The buttons are card-width so they sit flush on the
+        // columns; when the worst-case label does not fit at 13px with the 8px
+        // gap floor, the font scales down (ink scales linearly with font size)
+        // until it does, down to MIN_FIT_FONT_PX. Only below that do the
+        // buttons overrun W.
+        const iworst13 = getWorstCaseInk(liveSortButton) || IWORST_FALLBACK_ESTIMATE;
+        const baseFont = parseFloat(BUTTON_FONT_SIZE);
+        const labelBudget = geometry.width - BUTTON_CHROME_WIDTH - 2 * GAP_FLOOR;
+        let fontPx = baseFont;
+        if (iworst13 > labelBudget) {
+            fontPx = Math.max(MIN_FIT_FONT_PX, Math.floor(baseFont * labelBudget / iworst13 * 10) / 10);
+        }
+        const iworst = iworst13 * fontPx / baseFont;
+        const fontValue = fontPx + 'px';
+        starButton.style.fontSize = fontValue;
+        hideButton.style.fontSize = fontValue;
+        applyUniformFont(liveSortButton, fontValue);
         const width = Math.max(geometry.width, iworst + BUTTON_CHROME_WIDTH + 2 * GAP_FLOOR);
         const gap = Math.max(GAP_FLOOR, Math.min(GAP_CEIL,
             (geometry.width - iworst - BUTTON_CHROME_WIDTH) / 2));
@@ -695,7 +757,7 @@ function toggleSubscribedItems() {
         button.setAttribute('aria-pressed', isHidingSubscribed ? 'true' : 'false');
         const label = button.querySelector('.wshs-button-label');
         if (label) {
-            label.textContent = isHidingSubscribed ? 'Showing New Items' : 'Hide Subscribed';
+            setText(label, isHidingSubscribed ? 'Showing New Items' : 'Hide Subscribed');
         }
     }
     
@@ -750,24 +812,52 @@ function nodeContainsSortButton(node) {
     return !!(node.querySelector && node.querySelector('div[role="button"][tabindex] svg[viewBox="0 0 12 8"]'));
 }
 
+// DOM changes are batched to one pass per animation frame. While a big page
+// is still parsing, the observer fires once per parser chunk; running the
+// filter and geometry pass (which forces layout) on each one is what made the
+// large collection pages slow. requestAnimationFrame runs before paint, so new
+// items are still filtered before they are ever drawn.
+let pendingDomWork = 0; // 0 none, 1 width sync only, 2 full pass
+let domWorkFrame = null;
+
+function flushDomWork() {
+    domWorkFrame = null;
+    const work = pendingDomWork;
+    pendingDomWork = 0;
+    if (work === 2) {
+        applyFiltersIfNeeded();
+    } else if (work === 1 && widthSync) {
+        widthSync();
+    }
+}
+
+function scheduleDomWork(level) {
+    if (level > pendingDomWork) pendingDomWork = level;
+    if (domWorkFrame === null) domWorkFrame = requestAnimationFrame(flushDomWork);
+}
+
 // Set up mutation observer to handle dynamically loaded content
 const observer = new MutationObserver((mutations) => {
     lastDomMutationAt = Date.now();
     for (const mutation of mutations) {
+        // Our own label/state changes (star or hide click) already ran the
+        // filters synchronously; re-running them here doubled the click cost.
+        const target = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement;
+        if (target && target.closest('.wshs-injected-controls')) continue;
         if (mutation.addedNodes.length) {
-            applyFiltersIfNeeded();
+            scheduleDomWork(2);
             return;
         }
         for (const node of mutation.removedNodes) {
             if (node.nodeType === 1 && (node.classList.contains('hide-subscribed-button') ||
                 node.classList.contains('wshs-injected-controls') ||
                 node.querySelector('.hide-subscribed-button'))) {
-                createButtons();
+                scheduleDomWork(2);
                 return;
             }
             if (widthSync && nodeContainsSortButton(node)) {
                 // React replaced the native sort node; re-resolve and re-apply.
-                widthSync();
+                scheduleDomWork(1);
                 return;
             }
         }
@@ -776,8 +866,15 @@ const observer = new MutationObserver((mutations) => {
 
 observer.observe(document, {
     childList: true,
-    subtree: true,
-    attributes: true
+    subtree: true
+});
+
+// The only attribute this script needs is the hydration signal on <html>
+// (see hydration-signal.js); watching every attribute in the document made
+// the observer fire on Steam's constant hover and animation churn.
+new MutationObserver(() => scheduleDomWork(2)).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-wshs-hydrated']
 });
 
 init();

@@ -20,6 +20,13 @@
     padding: 10px;
 }
 
+/* Workshop page: the buttons carry the same drop shadow as the dropdowns
+   (Steam's sort popover and the star dropdown) so the controls read as one
+   set. content.js applies the same shadow to Steam's sort button inline. */
+.wshs-new-layout-controls .hide-subscribed-button {
+    box-shadow: 1px 1px 10px 0 rgba(0, 0, 0, 0.6);
+}
+
 .hide-subscribed-button:hover,
 .hide-subscribed-button:active,
 .hide-subscribed-button.active {
@@ -72,33 +79,99 @@
     display: none !important;
 }
 
+/* Star rating dropdown. Same width as the star button: the relative
+   container wraps the button exactly (inline-block on browse pages, the
+   stretched grid cell on collection pages). */
 .star-dropdown-content {
     display: none;
     position: absolute;
-    background-color: #171a21;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1000;
-    border: 1px solid #4d4d4d;
-    border-radius: 2px;
     top: 100%;
     left: 0;
+    z-index: 1000;
+    box-sizing: border-box;
+    width: 100%;
+    text-align: center;
 }
 
 .star-dropdown-content.show {
     display: block;
 }
 
+/* Default (collection and legacy pages): the workshop treatment translated
+   to the collection page's own skin. Background is the collection chips'
+   translucent black a step stronger (0.4 -> 0.48, as the workshop dropdown
+   is to its buttons) with the same 4px blur; text is the chips' 14px #939393
+   Motiva; hover is the chips' own hover (#97C0E3 / #3C3D3E); the shadow is
+   the one the buttons carry, clipped at the top edge so it stays off the
+   button. No border, like the chips. */
+.star-dropdown-content {
+    background: rgba(0, 0, 0, 0.48);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    box-shadow: 1px 1px 10px 0 rgba(0, 0, 0, 0.6);
+    clip-path: inset(0 -20px -20px -20px);
+    border: none;
+    border-radius: 0 0 3px 3px;
+    color: #939393;
+    font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+    font-size: 14px;
+}
+
 .star-option {
-    color: white;
+    color: inherit;
     padding: 12px 16px;
-    text-decoration: none;
-    display: block;
     cursor: pointer;
 }
 
 .star-option:hover {
-    background-color: #2a475e;
+    background-color: #97C0E3;
+    color: #3C3D3E;
+}
+
+/* New browse layout: styled after Steam's native sort popover in its fitted
+   (sort-popover-fit.js) form - gradient panel with blur and shadow, centered
+   11px #acb2b8 options. */
+.wshs-new-layout-controls .star-dropdown-content {
+    padding: 3.5px 0;
+    /* The buttons' background (translucent black, 4px backdrop blur) at 45%
+       opacity instead of the buttons' 37%. Steam's sort popover uses the same
+       (.wshs-sort-popover below). */
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    box-shadow: 1px 1px 10px 0 rgba(0, 0, 0, 0.6);
+    /* Clip the shadow at the top edge so it never falls on the button above;
+       it only shows on the sides and bottom, like a dropdown. */
+    clip-path: inset(0 -20px -20px -20px);
+    border: none;
+    border-radius: 0;
+    color: #acb2b8;
+    font-family: "Motiva Sans", Twemoji, "Noto Sans", Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: normal;
+    white-space: nowrap;
+}
+
+.wshs-new-layout-controls .wshs-star-options {
+    display: flex;
+    flex-direction: column;
+}
+
+/* The spacing lives in each row's padding (5.5px + 5.5px = the previous 11px
+   gap, 3.5px + 5.5px = the previous 9px edge) so the hover highlight spans
+   the full row width and height. Hover follows the buttons: a faint white
+   wash on the translucent panel and the label turning white. */
+.wshs-new-layout-controls .star-option {
+    padding: 5.5px 9px;
+    color: inherit;
+    line-height: 17px;
+    cursor: pointer;
+}
+
+.wshs-new-layout-controls .star-option:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
 }
 
 /* Wrapper for the injected controls (legacy pages and the new React SSR layout).
@@ -130,31 +203,32 @@
     row-gap: 5px;
 }
 
+/* Steam paints the collection box's top panel and header rule with fixed-size
+   no-repeat images (group_content_topbackground.png 642px wide,
+   content_header_rule.png 644px at -4px) on a 645px box, so both stop a few
+   pixels short of the right edge. Stretch them to the box so the panel ends
+   where the button rows do. Only on pages that hold our controls. */
+.detailBox:has(.wshs-collection-controls) {
+    background-size: 100% auto, calc(100% + 4px) 8px;
+}
+
 /* Row 1 stretch (collection-row-align.js sets inline style.width only on the
    3 native .general_btn): border-box makes each inline width the measured
    button box and flex-shrink: 0 keeps the distributed widths authoritative.
-   Round 7 centering: each native button becomes a centered flex row of its
-   existing icon + label. The sprites are absolutely positioned in Steam's
-   CSS, so they are returned to flow; align-items:center reproduces their
-   absolute vertical position (subscribe/unsubscribe are 30px tall, the 16px
-   duplicateCollection icon centres at its natural top 7px) and gap: 4px
-   preserves the natural icon-label spacing (icon 8-24px, label from 28px).
+   Edge-pinned anatomy (matches the workshop browse buttons): Steam already
+   pins each sprite absolutely 8px from the left edge, so the icon stays put
+   and the label centres across the whole button. The right padding mirrors
+   the native 28px left padding so the centred text has equal room both sides.
    Scoped to the aligned state only, so the fallback (class dropped, inline
    widths cleared) keeps Steam's natural box and left-anchored content. No
    color, type, border or hover change. */
 .subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn {
     box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+    text-align: center;
+    white-space: nowrap;
+    padding-left: 28px;
+    padding-right: 28px;
     flex-shrink: 0;
-}
-
-.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .subscribeIcon,
-.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .unsubscribeIcon,
-.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .duplicateCollectionIcon {
-    position: static;
 }
 
 .wshs-injected-controls.wshs-collection-controls {
@@ -192,39 +266,27 @@
     margin: 0;
 }
 
-/* Round 7 centering: each chip's content is one centered cluster. The icon
-   and the star chip's chevron leave their absolute pins and join the label in
-   flow (4px gap, the old icon-to-label spacing), and the label stops
-   stretching so the cluster is shrink-to-fit. The hide chip's reserved toggle
-   slot stays in flow so the active state cannot shift the cluster; a matching
-   invisible ::before spacer balances it on the left, keeping the visible
-   icon + label pair centered in both states. Scoped to the aligned state; the
-   fallback keeps the natural left-anchored layout. No color, type, border or
-   hover change. */
+/* Edge-pinned anatomy (matches the workshop browse buttons): the left icon
+   stays pinned 8px from the left edge, the star chip's chevron and the hide
+   chip's toggle slot are pinned to the right edge, and the label fills the
+   space between with its text centred. Symmetric 28px padding keeps the text
+   centred on the whole chip, so the active toggle check cannot shift it.
+   Scoped to the aligned state; the fallback keeps the natural left-anchored
+   layout. No color, type, border or hover change. */
 .wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .hide-subscribed-button {
-    justify-content: center;
-    gap: 4px;
-    padding: 0 8px;
-}
-
-.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-left-icon,
-.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-chevron {
-    position: static;
-    transform: none;
+    padding: 0 28px;
 }
 
 .wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-button-label {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     text-align: center;
 }
 
-/* Both boxes are 14px so the spacer mirrors the slot exactly; only the hide
-   chip has that slot. */
-.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .hide-subscribed-button:not(.star-filter-button)::before {
-    content: "";
-    flex: none;
-    width: 14px;
-    height: 14px;
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-toggle-slot {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .wshs-collection-controls .hide-subscribed-button {
@@ -245,10 +307,24 @@
     white-space: nowrap;
 }
 
+/* Collection page: all five buttons (the 3 native ones and our 2 chips) carry
+   the same drop shadow as the star dropdown, as on the workshop page. */
+.wshs-collection-controls .hide-subscribed-button,
+.subscribeCollection:has(> .wshs-collection-controls) > .general_btn {
+    box-shadow: 1px 1px 10px 0 rgba(0, 0, 0, 0.6);
+}
+
 .wshs-collection-controls .hide-subscribed-button:hover,
 .wshs-collection-controls .hide-subscribed-button:active {
     background-color: #97C0E3;
     color: #3C3D3E;
+}
+
+/* Icons are white like the native row's sprites, including on hover. */
+.wshs-collection-controls .wshs-left-icon,
+.wshs-collection-controls .wshs-chevron,
+.wshs-collection-controls .wshs-check-icon {
+    color: #fff;
 }
 
 .wshs-collection-controls .wshs-left-icon {
@@ -282,4 +358,63 @@
 .wshs-collection-controls .wshs-check-icon {
     width: 14px;
     height: 14px;
+}
+/* Native sort popover fitted to the sort button's width (sort-popover-fit.js
+   marks the popover's fixed root and sets --wshs-sort-w). Compact two-column
+   layout: 11px labels, 10px section headers and radio dots scaled 12px -> 10px
+   so "Total Unique Subscribers" and "Three Months" fit side by side without
+   wrapping. Selectors are structural because Steam's class names are hashed:
+   root > box > panel > column > [header, radiogroup > radio > (dot, label)]. */
+.wshs-sort-popover {
+    width: var(--wshs-sort-w) !important;
+}
+
+.wshs-sort-popover > div {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px !important;
+    /* Exactly the buttons' background, like the star dropdown. */
+    background: rgba(0, 0, 0, 0.45) !important;
+    /* Steam's own shadow (#000) softened to match the buttons and the star
+       dropdown. */
+    box-shadow: 1px 1px 10px 0 rgba(0, 0, 0, 0.6) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    backdrop-filter: blur(4px) !important;
+}
+
+.wshs-sort-popover > div > div {
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+}
+
+.wshs-sort-popover > div > div > div {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 9px !important;
+}
+
+.wshs-sort-popover > div > div > div > :first-child {
+    font-size: calc(var(--wshs-sort-fs, 11px) - 1px) !important;
+}
+
+.wshs-sort-popover [role="radiogroup"] {
+    gap: 11px !important;
+}
+
+.wshs-sort-popover [role="radio"] {
+    gap: 4px !important;
+    align-items: center !important;
+    white-space: nowrap;
+}
+
+.wshs-sort-popover [role="radio"] > :first-child {
+    zoom: 0.8333;
+}
+
+.wshs-sort-popover [role="radio"] > span {
+    font-size: var(--wshs-sort-fs, 11px) !important;
+    white-space: nowrap;
 }
