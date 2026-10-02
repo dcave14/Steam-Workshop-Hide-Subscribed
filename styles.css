@@ -133,12 +133,28 @@
 /* Row 1 stretch (collection-row-align.js sets inline style.width only on the
    3 native .general_btn): border-box makes each inline width the measured
    button box and flex-shrink: 0 keeps the distributed widths authoritative.
-   Scoped to the aligned state only, so the fallback (inline widths cleared)
-   keeps Steam's natural box behavior. No color, type, border or hover
-   change. */
+   Round 7 centering: each native button becomes a centered flex row of its
+   existing icon + label. The sprites are absolutely positioned in Steam's
+   CSS, so they are returned to flow; align-items:center reproduces their
+   absolute vertical position (subscribe/unsubscribe are 30px tall, the 16px
+   duplicateCollection icon centres at its natural top 7px) and gap: 4px
+   preserves the natural icon-label spacing (icon 8-24px, label from 28px).
+   Scoped to the aligned state only, so the fallback (class dropped, inline
+   widths cleared) keeps Steam's natural box and left-anchored content. No
+   color, type, border or hover change. */
 .subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn {
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     flex-shrink: 0;
+}
+
+.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .subscribeIcon,
+.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .unsubscribeIcon,
+.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn > .duplicateCollectionIcon {
+    position: static;
 }
 
 .wshs-injected-controls.wshs-collection-controls {
@@ -176,11 +192,39 @@
     margin: 0;
 }
 
-/* Native left rhythm: icon pinned 8px from the left, label starting at 28px
-   (the icon plus 4px), exactly like the native .general_btn children. The
-   star chip keeps its chevron pinned to the chip's right edge. */
+/* Round 7 centering: each chip's content is one centered cluster. The icon
+   and the star chip's chevron leave their absolute pins and join the label in
+   flow (4px gap, the old icon-to-label spacing), and the label stops
+   stretching so the cluster is shrink-to-fit. The hide chip's reserved toggle
+   slot stays in flow so the active state cannot shift the cluster; a matching
+   invisible ::before spacer balances it on the left, keeping the visible
+   icon + label pair centered in both states. Scoped to the aligned state; the
+   fallback keeps the natural left-anchored layout. No color, type, border or
+   hover change. */
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .hide-subscribed-button {
+    justify-content: center;
+    gap: 4px;
+    padding: 0 8px;
+}
+
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-left-icon,
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-chevron {
+    position: static;
+    transform: none;
+}
+
 .wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .wshs-button-label {
-    text-align: left;
+    flex: 0 1 auto;
+    text-align: center;
+}
+
+/* Both boxes are 14px so the spacer mirrors the slot exactly; only the hide
+   chip has that slot. */
+.wshs-injected-controls.wshs-collection-controls.wshs-row-aligned .hide-subscribed-button:not(.star-filter-button)::before {
+    content: "";
+    flex: none;
+    width: 14px;
+    height: 14px;
 }
 
 .wshs-collection-controls .hide-subscribed-button {

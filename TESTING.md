@@ -119,11 +119,14 @@ Page: `https://steamcommunity.com/sharedfiles/filedetails/?id=3521297585` - lega
 `#CommunityTemplate`, no `window.SSR`, all 865 rows in the DOM, anchor is the native
 `.subscribeCollection` 3-button row. The controls get a collection-scoped `.general_btn` skin
 there, and the row wraps our wrapper onto a second line (the row is too narrow for two more
-buttons); the three native buttons keep their look (only their width stretches - see the geometry
-line below).
+buttons); the three native buttons keep their look (only their width stretches and their
+content centres - see the geometry line below).
 
 - Controls render inside/next to the `.subscribeCollection` row, 30px tall, dark chip,
-  icon + label, unchanged on hover except the native blue `#97C0E3` hover.
+  icon + label centered in the control like the solo item subscribe button (the star
+  chip's icon + label + chevron is one centered cluster; the hide chip keeps its
+  reserved check slot in flow and balances it so the active state cannot shift the
+  cluster), unchanged on hover except the native blue `#97C0E3` hover.
 - "Hide Subscribed" on hides only rows whose `.general_btn.subscribe` has `toggled`
   (add/remove `toggled` live on rows to simulate); off restores all rows, no holes.
 - Star filter narrows rows by `img.fileRating` (`N-star.png`); clearing it restores all.
@@ -137,10 +140,13 @@ line below).
   button 3's right edge = chip 2's right edge. `collection-row-align.js` aligns them: chip 1's left
   edge = native button 1's left edge, the native buttons stretch proportionally to their natural
   widths (inline `width` only, 5px gaps kept unchanged, look otherwise untouched), and the 5px gap
-  between the chips stays centred on native button 2's live (stretched) midpoint. The gap between the
-  rows is 5px. When the script cannot measure, or the 3 native buttons are not on one line (top
-  deltas > 1px), the inline widths are cleared and the natives + wrapper fall back to Steam's natural
-  layout.
+  between the chips stays centred on native button 2's live (stretched) midpoint. The gap between
+  the rows is 5px. In the aligned state every control's inner content is centered in its content box
+  (the native buttons' icon + label become one flex cluster with the natural 4px icon-label gap
+  preserved; the chips likewise, the star chip's chevron included); when the script cannot measure,
+  or the 3 native buttons are not on one line (top deltas > 1px), the inline widths are cleared and
+  the natives + wrapper fall back to Steam's natural layout with the natural (left-anchored) content
+  alignment.
 
 ### No-extension injection harness (classic pages, CSP-safe)
 
@@ -150,6 +156,8 @@ extension. Established harness (rounds 2b-5): after a clean reload, inject the c
 with a hidden file input + FileReader (steam-dom.js, content.js, collection-row-align.js in that
 order, plus styles.css injected as a `<style>` tag), under a localStorage-backed `chrome.storage` shim so `hideSubscribed` / `starFilter`
 persistence can be exercised. Hash-match the injected bytes against the repo files before asserting.
+Harness detail: `upload_file` needs a snapshot input uid - hide the ~864 `.collectionItem` rows
+before snapshotting so the snapshot stays small enough to enumerate the hidden file input.
 
 ## Screenshots
 
