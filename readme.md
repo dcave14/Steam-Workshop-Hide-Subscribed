@@ -1,6 +1,6 @@
 # Steam Workshop Filter Plus
 
-A Chrome extension that adds filtering to Steam Workshop pages and collections: hide the mods you are already subscribed to and filter by star rating, so new high-quality content is easy to find.
+A Chrome and Firefox extension that adds filtering to Steam Workshop pages and collections: hide the mods you are already subscribed to and filter by star rating, so new high-quality content is easy to find.
 
 ## Preview
 
@@ -26,7 +26,14 @@ A Chrome extension that adds filtering to Steam Workshop pages and collections: 
 ### From Chrome Web Store
 - https://chromewebstore.google.com/detail/steam-workshop-filter-plu/ahdjppacldfaiahihkhfkhhmadhicfda
 
-### Manual Installation (Developer Mode)
+### Firefox
+Firefox 140 or newer. Until it is listed on Firefox Add-ons, download
+`Steam-Workshop-Filter-Plus-<version>-firefox.zip` from
+[Releases](https://github.com/dcave14/Steam-Workshop-Hide-Subscribed/releases), open
+`about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on..." and pick the zip
+(temporary add-ons are removed when Firefox restarts).
+
+### Manual Installation (Chrome Developer Mode)
 1. Download the latest zip from [Releases](https://github.com/dcave14/Steam-Workshop-Hide-Subscribed/releases) and unzip it, or clone this repository
 2. Open Chrome and navigate to `chrome://extensions`
 3. Enable "Developer mode" in the top right
@@ -73,14 +80,22 @@ See the [privacy policy](https://dcave14.github.io/Steam-Workshop-Hide-Subscribe
 ├── sort-popover-fit.js      Fits Steam's sort menu to the width of the sort button
 ├── hydration-signal.js      Tells content.js when Steam's page has finished loading (React)
 ├── styles.css               Styles for the controls and dropdowns
+├── build.js                 Builds the Chrome and Firefox packages into dist/
 ├── docs/                    Privacy policy page (GitHub Pages) and README GIFs
 ├── perf/                    Performance test (Puppeteer)
 └── promo/                   Scripts for the promo video, store images and README GIFs
 ```
 
 ### Building
-No build step - plain JavaScript. To make a store package, zip the files referenced by
-`manifest.json` (the manifest, the five scripts, `styles.css` and the icon).
+No compile step - plain JavaScript, and Chrome can load the repository folder directly.
+To make the store packages:
+```
+node build.js
+```
+This writes `dist/Steam-Workshop-Filter-Plus-<version>-chrome.zip` (Chrome Web Store) and
+`dist/Steam-Workshop-Filter-Plus-<version>-firefox.zip` (Firefox Add-ons) from the same
+source files. The only difference is the Firefox manifest, which adds
+`browser_specific_settings.gecko` (add-on ID, Firefox 140+, data-collection declaration).
 
 ### Testing
 1. Make changes to the code
@@ -127,6 +142,7 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 - Star Rating dropdown restyled to match each page
 - Buttons appear as soon as Steam's page is ready (about 1.4s instead of 3s+)
 - Faster on large collections: no extra page-load delay, fewer layout passes, quicker clicks
+- Firefox version (Firefox 140+), built from the same source with `node build.js`
 - Added a performance test (`perf/`)
 - Updated the privacy policy (now hosted on GitHub Pages)
 

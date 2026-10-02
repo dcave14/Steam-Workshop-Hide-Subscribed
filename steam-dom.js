@@ -129,6 +129,17 @@
         return loggedInState === null ? true : loggedInState;
     }
 
+    // Firefox runs content-script fetch() as the extension, so the request
+    // would not carry the page's Steam session; content.fetch() (Firefox
+    // only) makes it as the page itself. Chrome's content-script fetch is
+    // already page-origin.
+    function pageFetch(input, init) {
+        if (typeof content !== 'undefined' && content && typeof content.fetch === 'function') {
+            return content.fetch(input, init);
+        }
+        return fetch(input, init);
+    }
+
     function sendReplayBatch(batch) {
         var args;
         var idsIndex;
@@ -156,7 +167,7 @@
         url.searchParams.set('q', 'GetUserListStatus');
         url.searchParams.set('qp', JSON.stringify(args));
 
-        fetch(url.href, { headers: { 'x-valve-refetch-payload': 'queryAction' } })
+        pageFetch(url.href, { headers: { 'x-valve-refetch-payload': 'queryAction' } })
             .then(function (response) {
                 if (!response.ok) throw new Error('GetUserListStatus HTTP ' + response.status);
                 return response.json();

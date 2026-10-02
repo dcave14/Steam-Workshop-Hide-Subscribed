@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Build output (node build.js)
+dist/
+
 # Perf test output (perf/perf-test.js)
 perf/results*.json
 perf/*.txt
