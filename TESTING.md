@@ -131,11 +131,21 @@ buttons); the three native buttons must keep their normal size and look.
 - Zero console errors.
 - Bar geometry (two-row aligned layout): the `.subscribeCollection` bar must stay within its container
   at any viewport (bar right edge = container content right edge, no overhang). Row 1 = the 3 native
-  buttons; row 2 = the 2 injected chips, exactly as wide as row 1 and aligned to it by
-  `collection-row-align.js`: chip 1's left edge = native button 1's left edge, the 5px gap between the
-  chips is centred on native button 2's midpoint, chip 2's right edge = native button 3's right edge,
-  and the gap between the rows is 5px. When the script cannot measure, or the 3 native buttons are not
-  on one line (top deltas > 1px), the wrapper falls back to its natural shrink-to-fit width.
+  buttons; row 2 = the 2 injected chips, aligned by `collection-row-align.js`: chip 1's left edge =
+  native button 1's left edge, the 5px gap between the chips is centred on native button 2's midpoint,
+  row 2 spans to the items' right edge - the right edge of the rightmost visible green per-row
+  subscribe button (fallback: the bar's content right edge) - and the gap between the rows is 5px.
+  When the script cannot measure, or the 3 native buttons are not on one line (top deltas > 1px), the
+  wrapper falls back to its natural shrink-to-fit width.
+
+### No-extension injection harness (classic pages, CSP-safe)
+
+The legacy collection page's CSP blocks localhost fetch/script (connect-src/script-src), so runtime
+checks cannot load repo files from a server and the automation browser cannot install the unpacked
+extension. Established harness (rounds 2b-5): after a clean reload, inject the current repo files
+with a hidden file input + FileReader (steam-dom.js, content.js, collection-row-align.js in that
+order), under a localStorage-backed `chrome.storage` shim so `hideSubscribed` / `starFilter`
+persistence can be exercised. Hash-match the injected bytes against the repo files before asserting.
 
 ## Screenshots
 
