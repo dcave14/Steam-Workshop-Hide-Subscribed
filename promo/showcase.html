@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filter Plus Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Figtree:wght@400;500;600;700&family=Oswald:wght@500;700&family=Sora:wght@400;500;600;700&family=Special+Elite&display=block" rel="stylesheet">
+<link rel="stylesheet" href="showcase.css">
+</head>
+<body>
+<div id="stage">
+    <div id="bg">
+        <div class="glow glow-a"></div>
+        <div class="glow glow-b"></div>
+        <div class="bg-grid"></div>
+    </div>
+
+    <div id="cam">
+        <div id="browser"></div>
+        <div id="cursor">
+            <svg width="30" height="30" viewBox="0 0 30 30">
+                <path d="M4 3l0 20l5.2-4.8l3.6 8.2l3.6-1.6l-3.6-8l7.2-0.4z" fill="#fff" stroke="#0b0d12" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <div class="ripple"></div>
+        </div>
+    </div>
+
+    <div id="scrim"></div>
+    <div id="headlines"></div>
+
+    <div id="intro">
+        <div class="logo-wrap">
+            <div class="logo-ring"></div>
+            <img class="logo" src="../Steam-Workshop-Filter-Plus-Icon.png" alt="">
+        </div>
+        <h1 class="intro-title"></h1>
+        <p class="intro-tag">Find Workshop mods you don't have yet, and skip the ones that aren't worth it.</p>
+        <div class="intro-games">
+            <span class="chip">RimWorld</span>
+            <span class="chip">Project Zomboid</span>
+            <span class="chip">Cities: Skylines II</span>
+            <span class="chip chip-more">and every other Workshop</span>
+        </div>
+    </div>
+
+    <div id="outro">
+        <div class="outro-head">
+            <img class="logo" src="../Steam-Workshop-Filter-Plus-Icon.png" alt="">
+            <div>
+                <div class="outro-title">Steam Workshop Filter Plus</div>
+                <div class="outro-sub">A free Chrome extension for the Steam Workshop</div>
+            </div>
+        </div>
+        <div class="features">
+            <div class="feature">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M12 4.5C6.9 4.5 3 8.53 1.8 12c1.2 3.47 5.1 7.5 10.2 7.5s9-4.03 10.2-7.5C21 8.53 17.1 4.5 12 4.5zm0 12a4.5 4.5 0 110-9 4.5 4.5 0 010 9z"/><path d="M4.2 2.5l17.3 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <div class="f-title">Hide subscribed</div>
+                <div class="f-body">Only see items you haven't added yet.</div>
+            </div>
+            <div class="feature">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <div class="f-title">Star rating filter</div>
+                <div class="f-body">Anything from 1+ stars to 5 stars only.</div>
+            </div>
+            <div class="feature">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z"/></svg>
+                <div class="f-title">Remembers settings</div>
+                <div class="f-body">Stored locally. No account, no tracking.</div>
+            </div>
+        </div>
+        <div class="cta-row">
+            <div class="dl">
+                <div class="cta">Available on the Chrome Web Store</div>
+                <div class="dl-url">chromewebstore.google.com/detail/ahdjppacldfaiahihkhfkhhmadhicfda</div>
+            </div>
+            <div class="or">or</div>
+            <div class="dl">
+                <div class="cta cta-alt">Download from GitHub</div>
+                <div class="dl-url">github.com/dcave14/Steam-Workshop-Hide-Subscribed</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fade"></div>
+</div>
+
+<script src="scene-data.js"></script>
+<script src="thumbs.js"></script>
+<script src="page-builder.js"></script>
+<script src="timeline.js"></script>
+</body>
+</html>
