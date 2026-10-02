@@ -119,7 +119,8 @@ Page: `https://steamcommunity.com/sharedfiles/filedetails/?id=3521297585` - lega
 `#CommunityTemplate`, no `window.SSR`, all 865 rows in the DOM, anchor is the native
 `.subscribeCollection` 3-button row. The controls get a collection-scoped `.general_btn` skin
 there, and the row wraps our wrapper onto a second line (the row is too narrow for two more
-buttons); the three native buttons must keep their normal size and look.
+buttons); the three native buttons keep their look (only their width stretches - see the geometry
+line below).
 
 - Controls render inside/next to the `.subscribeCollection` row, 30px tall, dark chip,
   icon + label, unchanged on hover except the native blue `#97C0E3` hover.
@@ -131,12 +132,15 @@ buttons); the three native buttons must keep their normal size and look.
 - Zero console errors.
 - Bar geometry (two-row aligned layout): the `.subscribeCollection` bar must stay within its container
   at any viewport (bar right edge = container content right edge, no overhang). Row 1 = the 3 native
-  buttons; row 2 = the 2 injected chips, aligned by `collection-row-align.js`: chip 1's left edge =
-  native button 1's left edge, the 5px gap between the chips is centred on native button 2's midpoint,
-  row 2 spans to the items' right edge - the right edge of the rightmost visible green per-row
-  subscribe button (fallback: the bar's content right edge) - and the gap between the rows is 5px.
-  When the script cannot measure, or the 3 native buttons are not on one line (top deltas > 1px), the
-  wrapper falls back to its natural shrink-to-fit width.
+  buttons, row 2 = the 2 injected chips; both rows end on the SAME line - the right edge of the
+  rightmost visible green per-row subscribe button (fallback: the bar's content right edge), so
+  button 3's right edge = chip 2's right edge. `collection-row-align.js` aligns them: chip 1's left
+  edge = native button 1's left edge, the native buttons stretch proportionally to their natural
+  widths (inline `width` only, 5px gaps kept unchanged, look otherwise untouched), and the 5px gap
+  between the chips stays centred on native button 2's live (stretched) midpoint. The gap between the
+  rows is 5px. When the script cannot measure, or the 3 native buttons are not on one line (top
+  deltas > 1px), the inline widths are cleared and the natives + wrapper fall back to Steam's natural
+  layout.
 
 ### No-extension injection harness (classic pages, CSP-safe)
 
@@ -144,7 +148,7 @@ The legacy collection page's CSP blocks localhost fetch/script (connect-src/scri
 checks cannot load repo files from a server and the automation browser cannot install the unpacked
 extension. Established harness (rounds 2b-5): after a clean reload, inject the current repo files
 with a hidden file input + FileReader (steam-dom.js, content.js, collection-row-align.js in that
-order), under a localStorage-backed `chrome.storage` shim so `hideSubscribed` / `starFilter`
+order, plus styles.css injected as a `<style>` tag), under a localStorage-backed `chrome.storage` shim so `hideSubscribed` / `starFilter`
 persistence can be exercised. Hash-match the injected bytes against the repo files before asserting.
 
 ## Screenshots

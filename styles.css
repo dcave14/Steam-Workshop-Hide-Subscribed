@@ -130,6 +130,17 @@
     row-gap: 5px;
 }
 
+/* Row 1 stretch (collection-row-align.js sets inline style.width only on the
+   3 native .general_btn): border-box makes each inline width the measured
+   button box and flex-shrink: 0 keeps the distributed widths authoritative.
+   Scoped to the aligned state only, so the fallback (inline widths cleared)
+   keeps Steam's natural box behavior. No color, type, border or hover
+   change. */
+.subscribeCollection:has(> .wshs-collection-controls.wshs-row-aligned) > .general_btn {
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
 .wshs-injected-controls.wshs-collection-controls {
     flex: none;
     gap: 0;

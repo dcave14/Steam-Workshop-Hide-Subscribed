@@ -1,11 +1,11 @@
 // collection-row-align.js
-// Round-5 two-row layout support for classic Steam collection pages.
+// Round-6 two-row layout support for classic Steam collection pages.
 //
 // Single responsibility: mirror the native 3-button row geometry
 // (div.subscribeCollection) onto the injected .wshs-collection-controls
 // wrapper as CSS custom properties:
 //   --wshs-row-w  = row-end landmark right - btn1.left
-//   --wshs-seam-w = btn2 midpoint - btn1.left - CHIP_GAP / 2
+//   --wshs-seam-w = stretched btn2 midpoint - btn1.left - CHIP_GAP / 2
 //                 (the 5px chip gap is centred on btn2's midpoint)
 // The row-end landmark is the right edge of the rightmost VISIBLE green
 // per-row subscribe button (div.collectionItem a.general_btn.subscribe) - the
@@ -15,15 +15,24 @@
 // The target is clamped to the bar's border-box right edge and the
 // container's content right edge: the row may consume the bar's right padding
 // to reach the line, but the page never overflows.
+//
+// Row 1: the 3 native .general_btn are stretched to fill the same
+// --wshs-row-w. Each button gets width = natural width + extra *
+// (natural width / total natural width), so the relative rhythm is preserved
+// and the 5px gaps are untouched. Only inline style.width is set; onclick,
+// href, class, id and text are never touched, and scoped CSS supplies
+// box-sizing: border-box / flex-shrink: 0 (styles.css). The seam width is
+// computed from the stretched btn2 width, so it stays on the live midpoint.
 // styles.css turns the wrapper into a grid with
 // grid-template-columns: var(--wshs-seam-w) 1fr and column-gap 5px.
 //
 // Self-contained: content.js does not import or call this file. A
 // MutationObserver picks up the wrapper whenever content.js injects it, so
 // load order does not matter. If measurement fails, or the 3 native buttons
-// are not on one flex line, the class is dropped and the wrapper falls back
-// to its natural shrink-to-fit width. The aligned width is bounded by the
-// bar's border box, so the bar can never overhang its container.
+// are not on one flex line, the inline widths are cleared, the class is
+// dropped and both rows fall back to their natural layout. The aligned width
+// is bounded by the bar's border box, so the bar can never overhang its
+// container.
 
 (function () {
     'use strict';
@@ -34,8 +43,19 @@
     var wrapper = null;
     var bar = null;
     var barObserver = null;
+    var stretchedNatives = [];
+
+    // Row 1 stretches via inline style.width only; clearing it restores
+    // Steam's natural button layout.
+    function clearNativeWidths() {
+        for (var i = 0; i < stretchedNatives.length; i++) {
+            stretchedNatives[i].style.removeProperty('width');
+        }
+        stretchedNatives = [];
+    }
 
     function reset() {
+        clearNativeWidths();
         if (!wrapper) return;
         wrapper.classList.remove(ALIGN_CLASS);
         wrapper.style.removeProperty('--wshs-row-w');
@@ -53,6 +73,10 @@
             reset();
             return;
         }
+
+        // Natural geometry first: drop widths from a previous pass so the
+        // measurement below is always pre-stretch.
+        clearNativeWidths();
 
         var first = natives[0].getBoundingClientRect();
         var mid = natives[1].getBoundingClientRect();
@@ -106,11 +130,38 @@
         if (targetRight > maxRight) targetRight = maxRight;
 
         var rowW = targetRight - first.left;
-        var seamW = (mid.left + mid.right) / 2 - first.left - CHIP_GAP / 2;
-        if (!(rowW > 0) || !(seamW > 0) || !(seamW < rowW - CHIP_GAP)) {
+        var gap1 = mid.left - first.right;
+        var gap2 = last.left - mid.right;
+        var naturalW = first.width + mid.width + last.width;
+        if (!(rowW > 0) || !(naturalW > 0) || !(rowW - gap1 - gap2 > 0)) {
             reset();
             return;
         }
+
+        // Row 1: distribute the extra width proportionally to the natural
+        // widths (relative rhythm preserved, the 5px gaps untouched).
+        var spanW = rowW - gap1 - gap2;
+        var extra = spanW - naturalW;
+        var w0 = first.width + extra * (first.width / naturalW);
+        var w1 = mid.width + extra * (mid.width / naturalW);
+        var w2 = last.width + extra * (last.width / naturalW);
+        if (!(w0 > 0) || !(w1 > 0) || !(w2 > 0)) {
+            reset();
+            return;
+        }
+
+        // Seam = stretched btn2 midpoint: stretched btn1 width + gap +
+        // half the stretched btn2, less half the 5px chip gap.
+        var seamW = w0 + gap1 + w1 / 2 - CHIP_GAP / 2;
+        if (!(seamW > 0) || !(seamW < rowW - CHIP_GAP)) {
+            reset();
+            return;
+        }
+
+        natives[0].style.width = w0 + 'px';
+        natives[1].style.width = w1 + 'px';
+        natives[2].style.width = w2 + 'px';
+        stretchedNatives = [natives[0], natives[1], natives[2]];
 
         wrapper.style.setProperty('--wshs-row-w', rowW + 'px');
         wrapper.style.setProperty('--wshs-seam-w', seamW + 'px');
@@ -122,6 +173,7 @@
             barObserver.disconnect();
             barObserver = null;
         }
+        clearNativeWidths();
         wrapper = null;
         bar = null;
     }
