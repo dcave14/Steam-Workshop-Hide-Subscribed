@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Perf test output (perf/perf-test.js)
+perf/results*.json
+perf/*.txt
+perf/off-target-*.html
+
+# Rendered promo video, store images and README GIFs (regenerate with the promo/ scripts)
+promo/out/
+
+# Scratch screenshots from task runs
+.opencode/tasks/temp-screenshots/
+
+# Store upload packages are published as GitHub Release assets, not committed
+*.zip

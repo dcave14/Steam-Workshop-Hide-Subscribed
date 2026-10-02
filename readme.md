@@ -1,81 +1,99 @@
 # Steam Workshop Filter Plus
 
-A Chrome extension that adds filtering capabilities to Steam Workshop pages, allowing you to hide subscribed items and filter by star rating to easily discover new high-quality content.
+A Chrome extension that adds filtering to Steam Workshop pages and collections: hide the mods you are already subscribed to and filter by star rating, so new high-quality content is easy to find.
 
 ## Preview
 
-![Recording 2025-01-20 at 06 23 52](https://github.com/user-attachments/assets/c705f6af-d6c7-4c66-a2fc-b948faa6ad53)
-*Use the filters to quickly find new, highly-rated Workshop content.*
-![Recording 2025-02-17 at 06 50 38](https://github.com/user-attachments/assets/c676ef6b-853d-4f35-bd46-669b9e27bf54)
-*Now available to use with mod collections!*
+![Workshop page: hiding subscribed mods, filtering to 5 stars, then sorting by Top Rated](docs/workshop.gif)
+*On a Workshop page: hide subscribed mods, keep only 5-star mods, and sort with Steam's own menu - the filters stay on.*
+
+![Collection page: hiding subscribed items, then filtering to 5 stars](docs/collection.gif)
+*On a collection: hide what you already have, then keep only the 5-star mods.*
 
 ## Features
 
-- Toggle button to hide/show subscribed items
-- Star rating filter (5 stars only, 4+ stars, etc.)
-- Remembers your preferences between browser sessions
-- Seamlessly integrates with Steam's existing UI
-- Supports both the classic Workshop layout and Steam's new React SSR Workshop layout
-  (CommunityTemplate pages such as `steamcommunity.com/app/*/workshop/*`)
-- Supports classic collection pages (`steamcommunity.com/sharedfiles/filedetails/?id=<collectionid>`):
-  the controls join the collection's own 3-button row and match its native `.general_btn` styling
-- Lightweight and performant
+- **Hide Subscribed** button that hides every mod you are already subscribed to
+- **Star Rating** filter (5 stars only, 4+, 3+, 2+, 1+)
+- Remembers your choices between browser sessions
+- Built into Steam's own UI:
+  - On Workshop pages the buttons sit next to Steam's sort menu, match its style and line up with the mod card columns
+  - On collection pages the buttons join the collection's own Subscribe / Unsubscribe / Save row
+- Works on Steam's current Workshop layout and on the classic one
+- Lightweight: no build step, no tracking, no data sent anywhere except Steam
 
 ## Installation
 
 ### From Chrome Web Store
-- https://chromewebstore.google.com/detail/steam-workshop-filter-plu/ahdjppacldfaiahihkhfkhhmadhicfda?authuser=0&hl=en
+- https://chromewebstore.google.com/detail/steam-workshop-filter-plu/ahdjppacldfaiahihkhfkhhmadhicfda
 
 ### Manual Installation (Developer Mode)
-1. Download or clone this repository
+1. Download the latest zip from [Releases](https://github.com/dcave14/Steam-Workshop-Hide-Subscribed/releases) and unzip it, or clone this repository
 2. Open Chrome and navigate to `chrome://extensions`
 3. Enable "Developer mode" in the top right
 4. Click "Load unpacked"
-5. Select the directory containing the extension files
+5. Select the folder containing `manifest.json`
 
 ## Usage
 
-1. Navigate to any Steam Workshop page (classic pages, `steamcommunity.com/workshop/*`,
-   classic collection pages such as `steamcommunity.com/sharedfiles/filedetails/?id=<collectionid>`,
-   or the new layout pages such as `steamcommunity.com/app/*/workshop/*`)
-2. Find the filtering controls near the sorting options:
-   - "Hide Subscribed" button to toggle visibility of subscribed items
-   - "Star Rating" dropdown to filter by minimum star rating
-3. Your selections will be saved automatically and persist between sessions
+1. Open any Steam Workshop page (for example `steamcommunity.com/app/<appid>/workshop/` or
+   `steamcommunity.com/workshop/browse/?appid=<appid>`) or a collection page
+   (`steamcommunity.com/sharedfiles/filedetails/?id=<collectionid>`)
+2. Use the controls next to the sort menu (Workshop pages) or under the Subscribe to all row (collections):
+   - **Hide Subscribed** toggles visibility of subscribed items (sign in to Steam for this one)
+   - **Star Rating** filters by minimum star rating
+3. Your choices are saved automatically
 
 ## How It Works
 
 The extension:
-1. Adds filtering controls to Workshop and Collection pages
-2. Detects subscribed items and star ratings
-3. Uses Chrome's storage API to remember your preferences
-4. Monitors for dynamic content loading to maintain functionality with infinite scroll
+1. Adds the filter controls to Workshop and collection pages
+2. Reads each item's star rating and subscribed state
+3. Hides items that don't pass the filters
+4. Watches for new content (paging, sorting, infinite scroll) and filters it too
+5. Saves your choices with Chrome's storage API
 
-On Steam's new React SSR Workshop layout (CommunityTemplate) the original item selectors
-no longer exist, so the extension uses stable structural hooks instead of hashed class
-names. Subscribed state is not part of the server-rendered HTML there: the page requests
-it from `/sharedfiles/actions?q=GetUserListStatus`, and the extension observes those
-requests (plus replays them for uncached items) to learn which cards are subscribed.
-Star ratings come from the card's star icons with the SSR `window.SSR` data
-island (`star_rating` by publishedfileid) as a fallback.
+Steam's current Workshop layout is rendered by React with generated class names, so the
+extension finds things by page structure instead. Subscribed state is not part of that
+page, so while Hide Subscribed is on and you are signed in, the extension asks Steam
+(`/sharedfiles/actions?q=GetUserListStatus`, with your existing Steam login) which of the
+items on the page you are subscribed to. Star ratings come from the card's star icons, with
+the page's embedded data as a fallback. The buttons are only added once React has finished
+setting up the page, so Steam's own page keeps working normally.
+
+See the [privacy policy](https://dcave14.github.io/Steam-Workshop-Hide-Subscribed/privacy-policy.html) for exactly what is stored and sent.
 
 ## Development
 
 ### Project Structure
 ```
-├── manifest.json
-├── steam-dom.js
-├── content.js
-└── styles.css
+├── manifest.json            Extension manifest
+├── steam-dom.js             Finds cards, ratings and subscribed state on Steam's current layout
+├── content.js               Injects the controls, applies the filters, sizes the buttons
+├── collection-row-align.js  Lines the controls up with the collection page's button row
+├── sort-popover-fit.js      Fits Steam's sort menu to the width of the sort button
+├── hydration-signal.js      Tells content.js when Steam's page has finished loading (React)
+├── styles.css               Styles for the controls and dropdowns
+├── docs/                    Privacy policy page (GitHub Pages) and README GIFs
+├── perf/                    Performance test (Puppeteer)
+└── promo/                   Scripts for the promo video, store images and README GIFs
 ```
 
 ### Building
-No build step required - this is a simple extension using vanilla JavaScript.
+No build step - plain JavaScript. To make a store package, zip the files referenced by
+`manifest.json` (the manifest, the five scripts, `styles.css` and the icon).
 
 ### Testing
 1. Make changes to the code
 2. Reload the extension in `chrome://extensions`
-3. Test on Steam Workshop pages
+3. Test on Steam Workshop pages and a collection page
+
+Performance test (headless Chrome, compares pages with and without the extension):
+```
+cd perf
+npm install
+npm run perf
+```
+See `TESTING.md` for the full runtime checklist.
 
 ## Contributing
 
@@ -97,18 +115,20 @@ dcave14 - [GitHub Profile](https://github.com/dcave14)
 
 ## Changelog
 
-### Unreleased
-- Added the filters to classic collection pages (`sharedfiles/filedetails/?id=<collectionid>`),
-  where the controls join the collection's native button row and use its `.general_btn` styling
-- Rebuilt the injected controls in Steam's native style and placed them immediately left of the native sort button, with all three buttons sized to the mod card width and flush with the card columns below
-- The three controls now use one uniform 13px font and a frozen worst-case label width, so their geometry stays identical when the sort order or filter labels change
-
 ### 1.3.0
-- Added support for Steam's new React SSR Workshop layout (CommunityTemplate), including
-  `steamcommunity.com/app/*/workshop/*` pages: structural card detection, subscribed
-  state via observed/replayed `GetUserListStatus` queries, star counting and injected
-  controls in the new filter row
-- Kept the classic Workshop layout support unchanged
+- Support for Steam's new Workshop layout (`steamcommunity.com/app/*/workshop/*` and the
+  new browse pages): card detection, star ratings and subscribed state via Steam's
+  `GetUserListStatus` query
+- Filters on collection pages, joined to the collection's Subscribe / Unsubscribe / Save row
+- Controls rebuilt in Steam's own style, placed next to the sort menu and sized to the mod
+  card width so all three buttons sit flush on the card columns at any window size (the
+  labels shrink slightly on narrow windows instead of the buttons overhanging)
+- Steam's sort menu is fitted to the width of the sort button
+- Star Rating dropdown restyled to match each page
+- Buttons appear as soon as Steam's page is ready (about 1.4s instead of 3s+)
+- Faster on large collections: no extra page-load delay, fewer layout passes, quicker clicks
+- Added a performance test (`perf/`)
+- Updated the privacy policy (now hosted on GitHub Pages)
 
 ### 1.2.0
 - Added support for multiple item types (collection, workshop item, etc.)
